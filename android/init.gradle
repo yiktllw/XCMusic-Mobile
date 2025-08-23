@@ -1,0 +1,44 @@
+allprojects {
+    repositories {
+        // 强制使用国内镜像，优先级最高
+        maven { 
+            url 'https://maven.aliyun.com/repository/google'
+            allowInsecureProtocol = false
+        }
+        maven { 
+            url 'https://maven.aliyun.com/repository/central'
+            allowInsecureProtocol = false
+        }
+        maven { 
+            url 'https://maven.aliyun.com/repository/gradle-plugin'
+            allowInsecureProtocol = false
+        }
+        maven { 
+            url 'https://maven.aliyun.com/repository/public'
+            allowInsecureProtocol = false
+        }
+        maven { 
+            url 'https://maven.aliyun.com/repository/jcenter'
+            allowInsecureProtocol = false
+        }
+    }
+}
+
+// 插件仓库配置
+pluginManagement {
+    repositories {
+        maven { 
+            url 'https://maven.aliyun.com/repository/gradle-plugin'
+            allowInsecureProtocol = false
+        }
+        maven { 
+            url 'https://maven.aliyun.com/repository/google'
+            allowInsecureProtocol = false
+        }
+        maven { 
+            url 'https://maven.aliyun.com/repository/central'
+            allowInsecureProtocol = false
+        }
+        gradlePluginPortal()
+    }
+}
