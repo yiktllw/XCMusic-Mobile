@@ -9,8 +9,12 @@ void main() async {
   
   // 初始化全局配置管理器
   try {
-    await GlobalConfig().initialize();
-    print('全局配置管理器初始化成功');
+    print('正在初始化全局配置管理器...');
+    final globalConfig = GlobalConfig();
+    print('GlobalConfig实例创建完成，初始化状态: ${globalConfig.isInitialized ? "已初始化" : "未初始化"}');
+    
+    await globalConfig.initialize();
+    print('全局配置管理器初始化成功，当前状态: ${globalConfig.isInitialized ? "已初始化" : "未初始化"}');
   } catch (e) {
     print('全局配置管理器初始化失败: $e');
   }
@@ -91,14 +95,24 @@ class _HomePageState extends State<HomePage> {
       // 登录成功，保存到全局配置
       try {
         await _globalConfig.setLoggedIn(true);
-        if (result.cookie != null) {
-          await _globalConfig.setUserCookie(result.cookie);
+        
+        // 从result中提取cookie信息
+        String? cookieString;
+        if (result is Map<String, dynamic>) {
+          cookieString = result['cookie'] as String?;
+        } else {
+          // 兼容旧格式，如果result有cookie属性
+          cookieString = result.cookie;
+        }
+        
+        if (cookieString != null && cookieString.isNotEmpty) {
+          await _globalConfig.setUserCookie(cookieString);
         }
         await _globalConfig.setUserInfo({'loginTime': DateTime.now().toString()});
         
         setState(() {
           _isLoggedIn = true;
-          _userInfo = '登录成功! Cookie: ${result.cookie?.substring(0, 50) ?? 'N/A'}...';
+          _userInfo = '登录成功! Cookie: ${cookieString?.substring(0, 50) ?? 'N/A'}...';
         });
         
         if (mounted) {

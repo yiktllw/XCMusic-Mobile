@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -43,9 +44,9 @@ class EncryptedConfigManager {
     String? key = await _storage.read(key: _encryptionKeyName);
     
     if (key == null) {
-      // 生成新的256位密钥
-      final bytes = List<int>.generate(32, (i) => 
-        DateTime.now().millisecondsSinceEpoch.hashCode + i);
+      // 生成新的256位密钥 - 确保每个字节都在0-255范围内
+      final random = Random();
+      final bytes = List<int>.generate(32, (i) => random.nextInt(256));
       key = base64Encode(bytes);
       await _storage.write(key: _encryptionKeyName, value: key);
     }

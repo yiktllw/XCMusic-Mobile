@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 
 import 'api_manager.dart';
@@ -10,11 +12,22 @@ class LoginService {
   factory LoginService() => _instance;
   LoginService._internal();
 
+  /// 获取全局配置实例（确保使用已初始化的单例）
+  GlobalConfig get _globalConfig => GlobalConfig();
+
   /// 获取二维码登录key
   Future<String?> getQrKey() async {
     try {
       print('[API] 正在获取二维码登录key...');
-      final result = await ApiManager().call('loginQrKey', {});
+      // 使用timestamp参数来绕过缓存，确保每次都获取新的key
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      print('[API] 使用timestamp: $timestamp');
+      
+      final result = await ApiManager().call('loginQrKey', {
+        'timestamp': timestamp,
+      });
+      
+      print('[API] 完整响应: $result');
       
       // Dart API 返回格式: {'status': 200, 'body': {'data': {'code': 200, 'unikey': '...'}, 'code': 200}, 'cookie': ...}
       if (result['status'] == 200 && result['body'] != null && result['body']['code'] == 200) {
@@ -26,6 +39,7 @@ class LoginService {
       }
       
       print('[API] 二维码key获取失败: 响应格式不正确');
+      print('[API] 完整响应: $result');
       return null;
     } catch (e) {
       print('[API] 二维码key获取异常: $e');
@@ -40,10 +54,17 @@ class LoginService {
   Future<String?> createQrImg(String key) async {
     try {
       print('[API] 正在创建二维码图片，key: $key');
+      // 使用timestamp参数来绕过缓存，确保每次都生成新的二维码
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      print('[API] 使用timestamp: $timestamp');
+      
       final result = await ApiManager().call('loginQrCreate', {
         'key': key,
         'qrimg': true,
+        'timestamp': timestamp,
       });
+      
+      print('[API] 完整响应: $result');
       
       // Dart API 返回格式: {'code': 200, 'status': 200, 'body': {'code': 200, 'data': {'qrurl': ..., 'qrimg': ...}}}
       if (result['status'] == 200 && result['body'] != null && result['body']['code'] == 200) {
@@ -55,6 +76,7 @@ class LoginService {
       }
       
       print('[API] 二维码图片创建失败: 响应格式不正确');
+      print('[API] 完整响应: $result');
       return null;
     } catch (e) {
       print('[API] 二维码图片创建异常: $e');
@@ -72,12 +94,13 @@ class LoginService {
   /// - 803: 登录成功
   Future<Map<String, dynamic>?> checkQrStatus(String key) async {
     try {
-      final params = {
-        'key': key,
-        'timestamp': DateTime.now().millisecondsSinceEpoch.toString(),
-      };
+      // 每次都添加新的timestamp确保获取最新状态
+      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       
-      final result = await ApiManager().call('loginQrCheck', params);
+      final result = await ApiManager().call('loginQrCheck', {
+        'key': key,
+        'timestamp': timestamp,
+      });
       
       // Dart API 返回格式: {'status': 200, 'body': {'code': ..., 'cookie': ..., ...}, 'cookie': [...]}
       if (result['status'] == 200 && result['body'] != null) {
@@ -100,6 +123,9 @@ class LoginService {
             statusMessage = '登录成功';
             // 登录成功，保存 cookie
             await _saveCookieOnLoginSuccess(body);
+            // 添加调试信息
+            print('[API] 登录成功返回的body: $body');
+            print('[API] 登录成功返回的完整result: $result');
             break;
           default:
             statusMessage = '未知状态码: $code';
@@ -158,12 +184,20 @@ class LoginService {
   Future<void> _saveCookieOnLoginSuccess(Map<String, dynamic> loginResult) async {
     try {
       print('[CONFIG] 开始保存登录信息...');
+      print('[CONFIG] GlobalConfig状态: ${_globalConfig.isInitialized ? "已初始化" : "未初始化"}');
+      
+      // 如果未初始化，进行初始化
+      if (!_globalConfig.isInitialized) {
+        print('[CONFIG] GlobalConfig未初始化，正在初始化...');
+        await _globalConfig.initialize();
+        print('[CONFIG] GlobalConfig初始化完成');
+      }
       
       // 从登录结果中提取 cookie 信息
       final cookieString = loginResult['cookie'] as String?;
       if (cookieString != null && cookieString.isNotEmpty) {
         // 保存 cookie 字符串
-        await GlobalConfig().setUserCookie(cookieString);
+        await _globalConfig.setUserCookie(cookieString);
         print('[CONFIG] 用户Cookie已保存');
         
         print('[CONFIG] 登录信息保存完成');
@@ -178,7 +212,7 @@ class LoginService {
   /// 检查是否已登录
   Future<bool> isLoggedIn() async {
     try {
-      return await GlobalConfig().isLoggedIn();
+      return _globalConfig.isLoggedIn();
     } catch (e) {
       print('[CONFIG] 检查登录状态失败: $e');
       return false;
@@ -188,7 +222,7 @@ class LoginService {
   /// 获取保存的登录 cookie
   Future<String?> getSavedCookie() async {
     try {
-      final cookie = await GlobalConfig().getUserCookie();
+      final cookie = _globalConfig.getUserCookie();
       if (cookie != null) {
         print('[CONFIG] 获取到保存的Cookie');
       } else {
@@ -205,7 +239,7 @@ class LoginService {
   Future<void> clearSavedLoginInfo() async {
     try {
       print('[CONFIG] 开始清除登录信息...');
-      await GlobalConfig().setUserCookie('');
+      await _globalConfig.setUserCookie('');
       print('[CONFIG] 登录信息清除完成');
     } catch (e) {
       print('[CONFIG] 清除登录信息失败: $e');

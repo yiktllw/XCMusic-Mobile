@@ -21,6 +21,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
   String _statusMessage = '正在生成二维码...';
   bool _isLoading = true;
   Timer? _pollTimer;
+  int _qrStatus = 0; // 0: 生成中, 801: 等待扫描, 802: 待确认, 803: 成功, 800: 过期
 
   @override
   void initState() {
@@ -39,6 +40,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
     setState(() {
       _isLoading = true;
       _statusMessage = '正在生成二维码...';
+      _qrStatus = 0; // 设置为生成中状态
     });
 
     try {
@@ -48,6 +50,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
         setState(() {
           _statusMessage = '获取二维码失败，请重试';
           _isLoading = false;
+          _qrStatus = -1; // 错误状态
         });
         if (mounted) {
           _notificationService.showError('获取二维码key失败，请检查网络连接', context);
@@ -61,6 +64,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
         setState(() {
           _statusMessage = '生成二维码失败，请重试';
           _isLoading = false;
+          _qrStatus = -1; // 错误状态
         });
         if (mounted) {
           _notificationService.showError('生成二维码失败，请重试', context);
@@ -73,6 +77,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
         _qrUrl = qrUrl;
         _statusMessage = '请使用网易云音乐APP扫描二维码';
         _isLoading = false;
+        _qrStatus = 801; // 等待扫描状态
       });
 
       // 开始轮询登录状态
@@ -81,6 +86,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
       setState(() {
         _statusMessage = '网络错误: $e';
         _isLoading = false;
+        _qrStatus = -1; // 错误状态
       });
       if (mounted) {
         _notificationService.showError('初始化失败: $e', context);
@@ -105,6 +111,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
             _pollTimer?.cancel();
             setState(() {
               _statusMessage = '二维码已过期，正在重新生成...';
+              _qrStatus = 800;
             });
             if (mounted) {
               _notificationService.showError('二维码已过期，正在重新生成', context);
@@ -115,12 +122,14 @@ class _QrLoginPageState extends State<QrLoginPage> {
             // 等待扫描
             setState(() {
               _statusMessage = '请使用网易云音乐APP扫描二维码';
+              _qrStatus = 801;
             });
             break;
           case 802:
             // 待确认
             setState(() {
               _statusMessage = '请在手机上确认登录';
+              _qrStatus = 802;
             });
             if (mounted) {
               _notificationService.showWarning('请在手机上确认登录', context);
@@ -131,10 +140,20 @@ class _QrLoginPageState extends State<QrLoginPage> {
             _pollTimer?.cancel();
             setState(() {
               _statusMessage = '登录成功！';
+              _qrStatus = 803;
             });
             if (mounted) {
               _notificationService.showSuccess('登录成功！', context);
-              Navigator.of(context).pop(result);
+              // 添加调试信息
+              print('[QR_LOGIN] 登录成功，result: $result');
+              // 构造返回对象，确保包含cookie信息
+              final loginSuccessResult = {
+                'success': true,
+                'cookie': result['cookie'], // 从result中提取cookie
+                'data': result, // 保留原始数据
+              };
+              print('[QR_LOGIN] 构造的返回对象: $loginSuccessResult');
+              Navigator.of(context).pop(loginSuccessResult);
             }
             break;
         }
@@ -148,8 +167,53 @@ class _QrLoginPageState extends State<QrLoginPage> {
 
   /// 刷新二维码
   void _refreshQrCode() {
+    print('[QR] 用户点击刷新按钮');
     _pollTimer?.cancel();
+    setState(() {
+      _qrKey = null;
+      _qrUrl = null;
+    });
     _initQrCode();
+  }
+
+  /// 根据状态获取对应的颜色
+  Color _getStatusColor() {
+    switch (_qrStatus) {
+      case -1: // 错误状态
+        return Colors.red;
+      case 0: // 生成中
+        return Colors.orange;
+      case 800: // 过期
+        return Colors.red;
+      case 801: // 等待扫描
+        return Colors.blue;
+      case 802: // 待确认
+        return Colors.amber;
+      case 803: // 成功
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  /// 根据状态获取对应的图标
+  IconData _getStatusIcon() {
+    switch (_qrStatus) {
+      case -1: // 错误状态
+        return Icons.error_outline;
+      case 0: // 生成中
+        return Icons.hourglass_empty;
+      case 800: // 过期
+        return Icons.error_outline;
+      case 801: // 等待扫描
+        return Icons.qr_code_scanner;
+      case 802: // 待确认
+        return Icons.touch_app;
+      case 803: // 成功
+        return Icons.check_circle_outline;
+      default:
+        return Icons.info_outline;
+    }
   }
 
   @override
@@ -215,11 +279,36 @@ class _QrLoginPageState extends State<QrLoginPage> {
               
               const SizedBox(height: 24),
               
-              // 状态信息
-              Text(
-                _statusMessage,
-                style: const TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
+              // 状态信息区域
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _getStatusColor().withOpacity(0.1),
+                  border: Border.all(color: _getStatusColor().withOpacity(0.3)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _getStatusIcon(),
+                      color: _getStatusColor(),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _statusMessage,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: _getStatusColor(),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               
               const SizedBox(height: 32),

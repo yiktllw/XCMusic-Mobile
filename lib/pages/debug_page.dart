@@ -12,7 +12,8 @@ class DebugPage extends StatefulWidget {
 }
 
 class _DebugPageState extends State<DebugPage> {
-  final GlobalConfig _globalConfig = GlobalConfig();
+  /// 获取全局配置实例（确保使用已初始化的单例）
+  GlobalConfig get _globalConfig => GlobalConfig();
   bool _isLoading = false;
 
   @override
