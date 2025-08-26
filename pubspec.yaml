@@ -1,9 +1,9 @@
 name: xcmusic_mobile
-description: "XCMusic - A modern music streaming mobile application."  # HTTP client for API requests
+description: "XCMusic - A modern music streaming mobile application." # HTTP client for API requests
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -35,25 +35,25 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  
+
   # Secure storage for encrypted configuration
   flutter_secure_storage: ^9.2.2
-  
+
   # JSON serialization support
   json_annotation: ^4.9.0
-  
+
   # Crypto utilities for encryption
   crypto: ^3.0.5
-  
+
   # Path provider for getting app directories
   path_provider: ^2.1.4
-  
+
   # HTTP client for API requests
   http: ^1.2.0
-  
+
   # QR code display
   qr_flutter: ^4.1.0
-  
+
   # API module path dependency
   netease_cloud_music_api:
     path: ./api
@@ -70,7 +70,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
-  
+
   # Code generation for JSON serialization
   json_serializable: ^6.8.0
   build_runner: ^2.4.12
@@ -80,7 +80,6 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

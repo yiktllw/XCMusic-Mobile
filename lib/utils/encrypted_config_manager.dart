@@ -4,7 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// 加密的用户配置管理工具
-/// 
+///
 /// 提供类似JSON的类型安全存取操作，支持加密存储
 /// 支持基本数据类型：String, int, double, bool, List, Map
 class EncryptedConfigManager {
@@ -12,13 +12,14 @@ class EncryptedConfigManager {
 
   static const String _configKey = 'encrypted_user_config';
   static const String _encryptionKeyName = 'config_encryption_key';
-  
+
   Map<String, dynamic> _config = {};
   String? _encryptionKey;
   bool _isInitialized = false;
 
   /// 单例实例
-  static final EncryptedConfigManager _instance = EncryptedConfigManager._internal();
+  static final EncryptedConfigManager _instance =
+      EncryptedConfigManager._internal();
   factory EncryptedConfigManager() => _instance;
   EncryptedConfigManager._internal();
 
@@ -29,10 +30,10 @@ class EncryptedConfigManager {
     try {
       // 获取或生成加密密钥
       _encryptionKey = await _getOrCreateEncryptionKey();
-      
+
       // 加载配置
       await _loadConfig();
-      
+
       _isInitialized = true;
     } catch (e) {
       throw Exception('配置管理器初始化失败: $e');
@@ -42,7 +43,7 @@ class EncryptedConfigManager {
   /// 获取或创建加密密钥
   Future<String> _getOrCreateEncryptionKey() async {
     String? key = await _storage.read(key: _encryptionKeyName);
-    
+
     if (key == null) {
       // 生成新的256位密钥 - 确保每个字节都在0-255范围内
       final random = Random();
@@ -50,7 +51,7 @@ class EncryptedConfigManager {
       key = base64Encode(bytes);
       await _storage.write(key: _encryptionKeyName, value: key);
     }
-    
+
     return key;
   }
 
@@ -88,11 +89,11 @@ class EncryptedConfigManager {
 
     final key = base64Decode(_encryptionKey!);
     final dataBytes = utf8.encode(data);
-    
+
     // 使用HMAC-SHA256进行加密
     final hmac = Hmac(sha256, key);
     final digest = hmac.convert(dataBytes);
-    
+
     // 组合原始数据和摘要
     final combined = dataBytes + digest.bytes;
     return base64Encode(combined);
@@ -106,24 +107,24 @@ class EncryptedConfigManager {
 
     final key = base64Decode(_encryptionKey!);
     final combined = base64Decode(encryptedData);
-    
+
     // 分离数据和摘要
     final digestLength = 32; // SHA256 摘要长度
     if (combined.length < digestLength) {
       throw Exception('无效的加密数据');
     }
-    
+
     final dataBytes = combined.sublist(0, combined.length - digestLength);
     final digest = combined.sublist(combined.length - digestLength);
-    
+
     // 验证摘要
     final hmac = Hmac(sha256, key);
     final expectedDigest = hmac.convert(dataBytes);
-    
+
     if (!_listEquals(digest, expectedDigest.bytes)) {
       throw Exception('数据完整性验证失败');
     }
-    
+
     return utf8.decode(dataBytes);
   }
 
@@ -146,24 +147,24 @@ class EncryptedConfigManager {
   /// 设置配置值
   Future<void> set<T>(String key, T value) async {
     _ensureInitialized();
-    
+
     if (value == null) {
       _config.remove(key);
     } else {
       _config[key] = _serializeValue(value);
     }
-    
+
     await _saveConfig();
   }
 
   /// 获取配置值
   T? get<T>(String key, [T? defaultValue]) {
     _ensureInitialized();
-    
+
     if (!_config.containsKey(key)) {
       return defaultValue;
     }
-    
+
     return _deserializeValue<T>(_config[key], defaultValue);
   }
 

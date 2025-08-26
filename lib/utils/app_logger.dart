@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:netease_cloud_music_api/netease_cloud_music_api.dart';
 
 /// 统一的日志管理器
-/// 
+///
 /// 提供应用级别的日志记录功能，支持不同级别的日志输出
 /// 开发模式下会显示详细的日志信息，生产模式下会过滤部分日志
 class AppLogger {
@@ -27,14 +27,11 @@ class AppLogger {
         colors: true, // 启用颜色输出
         printEmojis: true, // 显示表情符号
         noBoxingByDefault: true, // 不使用边框包装
-        excludeBox: {
-          Level.debug: true,
-          Level.info: true,
-        }, // 对于debug和info级别不显示框
+        excludeBox: {Level.debug: true, Level.info: true}, // 对于debug和info级别不显示框
       ),
       output: ConsoleOutput(),
     );
-    
+
     _isInitialized = true;
   }
 
@@ -125,7 +122,13 @@ class AppLogger {
 /// 将API库的日志输出适配到应用的日志系统
 class _AppLoggerApiAdapter implements ApiLogger {
   @override
-  void log(ApiLogLevel level, String tag, String message, [dynamic error, StackTrace? stackTrace]) {
+  void log(
+    ApiLogLevel level,
+    String tag,
+    String message, [
+    dynamic error,
+    StackTrace? stackTrace,
+  ]) {
     switch (level) {
       case ApiLogLevel.debug:
         AppLogger.debug('$tag $message', error, stackTrace);
@@ -152,7 +155,7 @@ class _AppLogFilter extends LogFilter {
     if (kDebugMode) {
       return true;
     }
-    
+
     // 在生产模式下只显示警告及以上级别的日志
     return event.level.value >= Level.warning.value;
   }
@@ -174,12 +177,12 @@ class _CustomPrettyPrinter extends PrettyPrinter {
   List<String> log(LogEvent event) {
     // 获取原始输出
     final originalOutput = super.log(event);
-    
+
     // 如果不启用颜色，直接返回
     if (!colors) {
       return originalOutput;
     }
-    
+
     // 为debug级别的日志添加绿色
     if (event.level == Level.debug) {
       return originalOutput.map((line) {
@@ -190,7 +193,7 @@ class _CustomPrettyPrinter extends PrettyPrinter {
         return '\x1B[32m$line\x1B[0m'; // 绿色
       }).toList();
     }
-    
+
     return originalOutput;
   }
 }

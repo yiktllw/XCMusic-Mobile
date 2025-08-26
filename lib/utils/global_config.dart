@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'encrypted_config_manager.dart';
 
 /// 全局配置管理器
-/// 
+///
 /// 提供应用级别的配置管理，基于 EncryptedConfigManager
 /// 这个类提供了应用中常用配置的便捷访问方法
 class GlobalConfig {
@@ -12,13 +12,13 @@ class GlobalConfig {
 
   // 底层配置管理器
   final EncryptedConfigManager _configManager = EncryptedConfigManager();
-  
+
   bool _isInitialized = false;
 
   /// 初始化全局配置
   Future<void> initialize() async {
     if (_isInitialized) return;
-    
+
     await _configManager.initialize();
     _isInitialized = true;
   }
@@ -34,24 +34,24 @@ class GlobalConfig {
   }
 
   // ==================== 常用配置键名定义 ====================
-  
+
   /// 用户登录相关
   static const String userCookieKey = 'user_cookie';
   static const String userInfoKey = 'user_info';
   static const String isLoggedInKey = 'is_logged_in';
-  
+
   /// 应用设置
   static const String themeKey = 'theme_mode';
   static const String languageKey = 'language';
   static const String volumeKey = 'volume';
-  
+
   /// 音乐播放相关
   static const String playlistKey = 'current_playlist';
   static const String currentSongKey = 'current_song';
   static const String playModeKey = 'play_mode';
 
   // ==================== 用户登录相关方法 ====================
-  
+
   /// 设置用户Cookie
   Future<void> setUserCookie(String cookie) async {
     _ensureInitialized();

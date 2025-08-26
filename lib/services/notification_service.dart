@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// 通知类型枚举
-enum NotificationType {
-  success,
-  error,
-  warning,
-  info,
-}
+enum NotificationType { success, error, warning, info }
 
 /// 通知服务类
 /// 提供全局通知浮窗功能
@@ -23,13 +18,13 @@ class NotificationService {
   }
 
   /// 显示通知浮窗
-  /// 
+  ///
   /// [message] 通知消息
   /// [type] 通知类型
   /// [context] 上下文，用于获取Overlay
   /// [duration] 显示时长，默认3秒
   void show(
-    String message, 
+    String message,
     BuildContext context, {
     NotificationType type = NotificationType.info,
     Duration duration = const Duration(seconds: 3),
@@ -71,22 +66,42 @@ class NotificationService {
 
   /// 显示成功通知
   void showSuccess(String message, BuildContext context, {Duration? duration}) {
-    show(message, context, type: NotificationType.success, duration: duration ?? const Duration(seconds: 3));
+    show(
+      message,
+      context,
+      type: NotificationType.success,
+      duration: duration ?? const Duration(seconds: 3),
+    );
   }
 
   /// 显示错误通知
   void showError(String message, BuildContext context, {Duration? duration}) {
-    show(message, context, type: NotificationType.error, duration: duration ?? const Duration(seconds: 5));
+    show(
+      message,
+      context,
+      type: NotificationType.error,
+      duration: duration ?? const Duration(seconds: 5),
+    );
   }
 
   /// 显示警告通知
   void showWarning(String message, BuildContext context, {Duration? duration}) {
-    show(message, context, type: NotificationType.warning, duration: duration ?? const Duration(seconds: 4));
+    show(
+      message,
+      context,
+      type: NotificationType.warning,
+      duration: duration ?? const Duration(seconds: 4),
+    );
   }
 
   /// 显示信息通知
   void showInfo(String message, BuildContext context, {Duration? duration}) {
-    show(message, context, type: NotificationType.info, duration: duration ?? const Duration(seconds: 3));
+    show(
+      message,
+      context,
+      type: NotificationType.info,
+      duration: duration ?? const Duration(seconds: 3),
+    );
   }
 
   /// 隐藏当前通知
@@ -129,18 +144,12 @@ class _NotificationWidgetState extends State<_NotificationWidget>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _controller.forward();
   }
@@ -209,18 +218,11 @@ class _NotificationWidgetState extends State<_NotificationWidget>
                     offset: const Offset(0, 2),
                   ),
                 ],
-                border: Border.all(
-                  color: _getColor(),
-                  width: 1,
-                ),
+                border: Border.all(color: _getColor(), width: 1),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    _getIcon(),
-                    color: _getColor(),
-                    size: 24,
-                  ),
+                  Icon(_getIcon(), color: _getColor(), size: 24),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(

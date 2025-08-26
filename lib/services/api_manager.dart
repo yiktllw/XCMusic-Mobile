@@ -23,14 +23,14 @@ class ApiManager {
   /// 初始化API（应该在main函数中调用）
   Future<void> init() async {
     if (_initialized) return;
-    
+
     // 如果正在初始化，等待初始化完成
     if (_initCompleter != null) {
       return _initCompleter!.future;
     }
-    
+
     _initCompleter = Completer<void>();
-    
+
     try {
       print('正在初始化网易云音乐API...');
       _api = NeteaseCloudMusicApiFinal();
@@ -50,18 +50,21 @@ class ApiManager {
   bool get isInitialized => _initialized;
 
   /// 安全调用API方法（推荐使用新的类型安全方式）
-  /// 
+  ///
   /// 旧的调用方式（已弃用）:
   /// ```dart
   /// await ApiManager().call('loginQrKey', {});
   /// ```
-  /// 
+  ///
   /// 新的推荐调用方式:
   /// ```dart
   /// await ApiManager().api.call(ApiModules.loginQrKey, ApiParams.loginQrKey());
   /// ```
   @Deprecated('请使用 ApiManager().api.call(ApiModules.xxx, ApiParams.xxx()) 方式调用')
-  Future<Map<String, dynamic>> call(String moduleName, Map<String, dynamic> params) async {
+  Future<Map<String, dynamic>> call(
+    String moduleName,
+    Map<String, dynamic> params,
+  ) async {
     if (!_initialized) {
       throw StateError('API未初始化，请先调用 ApiManager().init()');
     }

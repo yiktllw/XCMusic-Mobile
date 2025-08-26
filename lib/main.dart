@@ -9,25 +9,26 @@ import 'utils/app_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // 初始化日志系统
   AppLogger().initialize();
-  
+
   // 将应用日志系统接入到API库
   ApiLogManager.setLogger(AppLogger.createApiAdapter());
-  
+
   // 初始化全局配置管理器
   try {
     AppLogger.app('正在初始化全局配置管理器...');
     final globalConfig = GlobalConfig();
-    AppLogger.config('GlobalConfig实例创建完成，初始化状态: ${globalConfig.isInitialized ? "已初始化" : "未初始化"}');
-    
+
     await globalConfig.initialize();
-    AppLogger.config('全局配置管理器初始化成功，当前状态: ${globalConfig.isInitialized ? "已初始化" : "未初始化"}');
+    AppLogger.config(
+      '全局配置管理器初始化成功，当前状态: ${globalConfig.isInitialized ? "已初始化" : "未初始化"}',
+    );
   } catch (e) {
     AppLogger.error('全局配置管理器初始化失败', e);
   }
-  
+
   // 初始化全局API服务
   try {
     await ApiManager().init();
@@ -36,7 +37,7 @@ void main() async {
     AppLogger.error('API服务初始化失败', e);
     // 即使初始化失败也继续运行，让用户看到错误信息
   }
-  
+
   runApp(const XCMusicApp());
 }
 
@@ -69,21 +70,12 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
 
   // 页面列表
-  final List<Widget> _pages = [
-    const HomePageContent(),
-    const ProfilePage(),
-  ];
+  final List<Widget> _pages = [const HomePageContent(), const ProfilePage()];
 
   // 底部导航栏项目
   final List<BottomNavigationBarItem> _bottomNavItems = const [
-    BottomNavigationBarItem(
-      icon: Icon(Icons.home),
-      label: '主页',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.person),
-      label: '我的',
-    ),
+    BottomNavigationBarItem(icon: Icon(Icons.home), label: '主页'),
+    BottomNavigationBarItem(icon: Icon(Icons.person), label: '我的'),
   ];
 
   void _onTabTapped(int index) {
@@ -108,7 +100,7 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
-    
+
     // 其他页面保持原有的AppBar
     return Scaffold(
       appBar: AppBar(
@@ -120,9 +112,7 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(Icons.bug_report),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const DebugPage(),
-                ),
+                MaterialPageRoute(builder: (context) => const DebugPage()),
               );
             },
             tooltip: '调试信息',

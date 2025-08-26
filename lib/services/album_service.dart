@@ -12,6 +12,7 @@ class AlbumService {
   Future<AlbumSublistResponse?> getSubscribedAlbums({
     int limit = 30,
     int offset = 0,
+    bool latest = false,
   }) async {
     try {
       final userCookie = _globalConfig.getUserCookie();
@@ -20,20 +21,24 @@ class AlbumService {
         return null;
       }
 
-      AppLogger.app('正在获取已收藏的专辑列表...');
-      
-      final result = await _apiManager.api.albumSublist(
-        limit: limit,
-        offset: offset,
-        cookie: userCookie,
-        timestamp: DateTime.now().millisecondsSinceEpoch.toString(),
-      );
-
-      AppLogger.info('专辑列表API返回: $result');
+      dynamic result;
+      if (latest) {
+        result = await _apiManager.api.albumSublist(
+          limit: limit,
+          offset: offset,
+          cookie: userCookie,
+          timestamp: DateTime.now().millisecondsSinceEpoch.toString(),
+        );
+      } else {
+        result = await _apiManager.api.albumSublist(
+          limit: limit,
+          offset: offset,
+          cookie: userCookie,
+        );
+      }
 
       if (result['status'] == 200 && result['body'] != null) {
         final response = AlbumSublistResponse.fromJson(result);
-        AppLogger.app('获取专辑列表成功，共 ${response.albums.length} 张专辑');
         return response;
       } else {
         AppLogger.error('获取专辑列表失败: ${result['status']}');
@@ -46,21 +51,25 @@ class AlbumService {
   }
 
   /// 获取所有已收藏的专辑（分页获取）
-  Future<List<Album>> getAllSubscribedAlbums() async {
+  Future<List<Album>> getAllSubscribedAlbums({bool latest = false}) async {
     final allAlbums = <Album>[];
     int offset = 0;
     const int limit = 30;
 
     try {
       while (true) {
-        final response = await getSubscribedAlbums(limit: limit, offset: offset);
-        
+        final response = await getSubscribedAlbums(
+          limit: limit,
+          offset: offset,
+          latest: latest,
+        );
+
         if (response == null || response.albums.isEmpty) {
           break;
         }
 
         allAlbums.addAll(response.albums);
-        
+
         if (!response.hasMore) {
           break;
         }

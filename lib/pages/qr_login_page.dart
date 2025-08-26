@@ -15,7 +15,7 @@ class QrLoginPage extends StatefulWidget {
 class _QrLoginPageState extends State<QrLoginPage> {
   final LoginService _loginService = LoginService();
   final NotificationService _notificationService = NotificationService();
-  
+
   String? _qrKey;
   String? _qrUrl;
   String _statusMessage = '正在生成二维码...';
@@ -239,13 +239,10 @@ class _QrLoginPageState extends State<QrLoginPage> {
               const SizedBox(height: 20),
               const Text(
                 '网易云音乐登录',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 32),
-              
+
               // 二维码区域
               Container(
                 width: 250,
@@ -255,30 +252,28 @@ class _QrLoginPageState extends State<QrLoginPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(),
-                      )
+                    ? const Center(child: CircularProgressIndicator())
                     : _qrUrl != null
-                        ? Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: QrImageView(
-                              data: _qrUrl!,
-                              version: QrVersions.auto,
-                              size: 230,
-                              backgroundColor: Colors.white,
-                            ),
-                          )
-                        : const Center(
-                            child: Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                          ),
+                    ? Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: QrImageView(
+                          data: _qrUrl!,
+                          version: QrVersions.auto,
+                          size: 230,
+                          backgroundColor: Colors.white,
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                      ),
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // 状态信息区域
               Container(
                 padding: const EdgeInsets.all(16),
@@ -290,11 +285,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      _getStatusIcon(),
-                      color: _getStatusColor(),
-                      size: 20,
-                    ),
+                    Icon(_getStatusIcon(), color: _getStatusColor(), size: 20),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
@@ -310,9 +301,9 @@ class _QrLoginPageState extends State<QrLoginPage> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               // 操作按钮
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -331,9 +322,9 @@ class _QrLoginPageState extends State<QrLoginPage> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // 使用说明
               const Card(
                 child: Padding(
@@ -358,7 +349,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 20),
             ],
           ),

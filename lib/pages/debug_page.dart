@@ -59,26 +59,46 @@ class _DebugPageState extends State<DebugPage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            _buildStatusItem('API 初始化状态', ApiManager().isInitialized ? '已初始化' : '未初始化'),
-            _buildStatusItem('API 日志状态', ApiManager().getApiLogging() ? '开启' : '关闭'),
+            _buildStatusItem(
+              'API 初始化状态',
+              ApiManager().isInitialized ? '已初始化' : '未初始化',
+            ),
+            _buildStatusItem(
+              'API 日志状态',
+              ApiManager().getApiLogging() ? '开启' : '关闭',
+            ),
             if (ApiManager().isInitialized) ...[
-              _buildStatusItem('可用模块数量', '${ApiManager().getAvailableModules().length}'),
+              _buildStatusItem(
+                '可用模块数量',
+                '${ApiManager().getAvailableModules().length}',
+              ),
               const SizedBox(height: 8),
-              const Text('可用模块:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const Text(
+                '可用模块:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
               const SizedBox(height: 4),
               Wrap(
                 spacing: 4,
                 runSpacing: 4,
-                children: ApiManager().getAvailableModules()
+                children: ApiManager()
+                    .getAvailableModules()
                     .take(10) // 只显示前10个模块，避免界面过长
-                    .map((module) => Chip(
-                          label: Text(module, style: const TextStyle(fontSize: 10)),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ))
+                    .map(
+                      (module) => Chip(
+                        label: Text(
+                          module,
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    )
                     .toList(),
               ),
               if (ApiManager().getAvailableModules().length > 10)
-                Text('...还有 ${ApiManager().getAvailableModules().length - 10} 个模块'),
+                Text(
+                  '...还有 ${ApiManager().getAvailableModules().length - 10} 个模块',
+                ),
             ],
           ],
         ),
@@ -99,16 +119,31 @@ class _DebugPageState extends State<DebugPage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            _buildStatusItem('初始化状态', _globalConfig.isInitialized ? '已初始化' : '未初始化'),
+            _buildStatusItem(
+              '初始化状态',
+              _globalConfig.isInitialized ? '已初始化' : '未初始化',
+            ),
             if (_globalConfig.isInitialized) ...[
               _buildStatusItem('配置项数量', '${_globalConfig.length}'),
-              _buildStatusItem('登录状态', _globalConfig.isLoggedIn() ? '已登录' : '未登录'),
-              _buildStatusItem('用户Cookie', _globalConfig.getUserCookie() != null ? '已保存' : '未保存'),
+              _buildStatusItem(
+                '登录状态',
+                _globalConfig.isLoggedIn() ? '已登录' : '未登录',
+              ),
+              _buildStatusItem(
+                '用户Cookie',
+                _globalConfig.getUserCookie() != null ? '已保存' : '未保存',
+              ),
               _buildStatusItem('主题模式', _globalConfig.getThemeMode()),
               _buildStatusItem('语言', _globalConfig.getLanguage()),
-              _buildStatusItem('音量', '${(_globalConfig.getVolume() * 100).toInt()}%'),
+              _buildStatusItem(
+                '音量',
+                '${(_globalConfig.getVolume() * 100).toInt()}%',
+              ),
               const SizedBox(height: 12),
-              const Text('所有配置键:', style: TextStyle(fontWeight: FontWeight.w500)),
+              const Text(
+                '所有配置键:',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
               const SizedBox(height: 4),
               if (_globalConfig.keys.isEmpty)
                 const Text('无配置数据')
@@ -117,10 +152,16 @@ class _DebugPageState extends State<DebugPage> {
                   spacing: 4,
                   runSpacing: 4,
                   children: _globalConfig.keys
-                      .map((key) => Chip(
-                            label: Text(key, style: const TextStyle(fontSize: 10)),
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ))
+                      .map(
+                        (key) => Chip(
+                          label: Text(
+                            key,
+                            style: const TextStyle(fontSize: 10),
+                          ),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      )
                       .toList(),
                 ),
               const SizedBox(height: 12),
@@ -136,7 +177,10 @@ class _DebugPageState extends State<DebugPage> {
                     ),
                     child: Text(
                       _globalConfig.getAllConfig().toString(),
-                      style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      ),
                     ),
                   ),
                 ],
@@ -167,8 +211,14 @@ class _DebugPageState extends State<DebugPage> {
               children: [
                 ElevatedButton.icon(
                   onPressed: _isLoading ? null : _toggleApiLogging,
-                  icon: Icon(ApiManager().getApiLogging() ? Icons.volume_off : Icons.volume_up),
-                  label: Text(ApiManager().getApiLogging() ? '关闭API日志' : '开启API日志'),
+                  icon: Icon(
+                    ApiManager().getApiLogging()
+                        ? Icons.volume_off
+                        : Icons.volume_up,
+                  ),
+                  label: Text(
+                    ApiManager().getApiLogging() ? '关闭API日志' : '开启API日志',
+                  ),
                 ),
                 ElevatedButton.icon(
                   onPressed: _isLoading ? null : _testApiCall,
@@ -206,7 +256,10 @@ class _DebugPageState extends State<DebugPage> {
         children: [
           SizedBox(
             width: 100,
-            child: Text('$label:', style: const TextStyle(fontWeight: FontWeight.w500)),
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
           ),
           Expanded(child: Text(value)),
         ],
@@ -219,7 +272,7 @@ class _DebugPageState extends State<DebugPage> {
     final currentState = ApiManager().getApiLogging();
     ApiManager().setApiLogging(!currentState);
     setState(() {});
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('API日志已${!currentState ? '开启' : '关闭'}'),
@@ -241,7 +294,7 @@ class _DebugPageState extends State<DebugPage> {
 
       // 测试一个简单的API调用
       final result = await ApiManager().call('loginQrKey', {});
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -303,7 +356,7 @@ class _DebugPageState extends State<DebugPage> {
         // 重新初始化
         await _globalConfig.initialize();
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

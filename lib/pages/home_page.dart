@@ -16,11 +16,7 @@ class _HomePageContentState extends State<HomePageContent> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.music_note,
-              size: 80,
-              color: Colors.deepPurple,
-            ),
+            Icon(Icons.music_note, size: 80, color: Colors.deepPurple),
             SizedBox(height: 16),
             Text(
               'XCMusic',
@@ -31,20 +27,11 @@ class _HomePageContentState extends State<HomePageContent> {
               ),
             ),
             SizedBox(height: 8),
-            Text(
-              '音乐播放器',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
+            Text('音乐播放器', style: TextStyle(fontSize: 16, color: Colors.grey)),
             SizedBox(height: 40),
             Text(
               '主页功能正在开发中...',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ],
         ),

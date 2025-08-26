@@ -26,9 +26,11 @@ class Album {
       picUrl: json['picUrl'] as String,
       size: json['size'] as int,
       aliases: List<String>.from(json['alias'] ?? []),
-      artists: (json['artists'] as List?)
+      artists:
+          (json['artists'] as List?)
               ?.map((artist) => Artist.fromJson(artist as Map<String, dynamic>))
-              .toList() ?? [],
+              .toList() ??
+          [],
       subTime: json['subTime'] as int,
       messages: List<String>.from(json['msg'] ?? []),
     );
@@ -48,7 +50,7 @@ class Album {
   }
 
   String get artistNames => artists.map((artist) => artist.name).join(', ');
-  
+
   String get displayName {
     if (aliases.isNotEmpty) {
       return '$name (${aliases.first})';
@@ -111,9 +113,11 @@ class AlbumSublistResponse {
   factory AlbumSublistResponse.fromJson(Map<String, dynamic> json) {
     final body = json['body'] as Map<String, dynamic>;
     return AlbumSublistResponse(
-      albums: (body['data'] as List?)
+      albums:
+          (body['data'] as List?)
               ?.map((album) => Album.fromJson(album as Map<String, dynamic>))
-              .toList() ?? [],
+              .toList() ??
+          [],
       count: body['count'] as int,
       hasMore: body['hasMore'] as bool,
       paidCount: body['paidCount'] as int,

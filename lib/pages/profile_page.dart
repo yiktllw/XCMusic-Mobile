@@ -26,10 +26,10 @@ class _ProfilePageState extends State<ProfilePage> {
   List<Album> _albums = []; // 收藏的专辑
   bool _isLoadingPlaylists = false;
   bool _isLoadingAlbums = false;
-  
+
   // 歌单导航栏相关状态
   int _selectedPlaylistTab = 0; // 0: 创建, 1: 收藏, 2: 专辑
-  
+
   final GlobalConfig _globalConfig = GlobalConfig();
   final LoginService _loginService = LoginService();
   final AlbumService _albumService = AlbumService();
@@ -46,22 +46,21 @@ class _ProfilePageState extends State<ProfilePage> {
       if (_globalConfig.isInitialized) {
         final isLoggedIn = _globalConfig.isLoggedIn();
         final userInfo = _globalConfig.getUserInfo();
-        
+
         setState(() {
           _isLoggedIn = isLoggedIn;
           _userAccountInfo = userInfo;
         });
-        
+
         if (isLoggedIn) {
           // 获取最新用户信息
-          AppLogger.app('获取最新用户信息...');
           final userDetail = await _loginService.getSmartUserInfo();
           if (userDetail != null) {
             setState(() {
               _userAccountInfo = _loginService.getSavedUserAccount();
             });
           }
-          
+
           // 获取用户歌单
           await _loadUserPlaylists();
           // 获取用户收藏的专辑
@@ -74,23 +73,21 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   /// 加载用户收藏的专辑
-  Future<void> _loadUserAlbums() async {
+  Future<void> _loadUserAlbums({bool latest = false}) async {
     if (!_isLoggedIn) return;
-    
+
     setState(() {
       _isLoadingAlbums = true;
     });
-    
+
     try {
-      AppLogger.app('正在获取用户收藏的专辑...');
-      final response = await _albumService.getSubscribedAlbums(limit: 50);
-      
-      if (response != null) {
-        setState(() {
-          _albums = response.albums;
-        });
-        AppLogger.app('获取专辑成功，共 ${response.albums.length} 张专辑');
-      }
+      final response = await _albumService.getAllSubscribedAlbums(
+        latest: latest,
+      );
+
+      setState(() {
+        _albums = response;
+      });
     } catch (e) {
       AppLogger.error('获取用户专辑失败', e);
     } finally {
@@ -101,26 +98,30 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   /// 加载用户歌单
-  Future<void> _loadUserPlaylists() async {
+  Future<void> _loadUserPlaylists({bool latest = false}) async {
     if (!_isLoggedIn || _userAccountInfo == null) return;
-    
+
     setState(() {
       _isLoadingPlaylists = true;
     });
-    
+
     try {
       final userId = _userAccountInfo!['userId'];
       final userCookie = _globalConfig.getUserCookie();
       if (userId != null) {
-        AppLogger.app('正在获取用户歌单，用户ID: $userId');
-        
+        String? timestamp;
+        if (latest) {
+          timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+        } else {
+          timestamp = null;
+        }
         final result = await ApiManager().api.userPlaylist(
           uid: userId.toString(),
           limit: 50,
-          timestamp: DateTime.now().millisecondsSinceEpoch.toString(),
+          timestamp: timestamp,
           cookie: userCookie,
         );
-        
+
         if (result['status'] == 200 && result['body'] != null) {
           final body = result['body'] as Map<String, dynamic>;
           if (body['code'] == 200) {
@@ -129,11 +130,10 @@ class _ProfilePageState extends State<ProfilePage> {
               final allPlaylists = playlists.cast<Map<String, dynamic>>();
               final myPlaylists = <Map<String, dynamic>>[];
               final collectedPlaylists = <Map<String, dynamic>>[];
-              
+
               // 分离我的歌单和收藏的歌单
               for (final playlist in allPlaylists) {
                 final subscribed = playlist['subscribed'] as bool? ?? false;
-                AppLogger.info(playlist.toString());
 
                 if (!subscribed) {
                   myPlaylists.add(playlist);
@@ -141,13 +141,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   collectedPlaylists.add(playlist);
                 }
               }
-              
+
               setState(() {
                 _userPlaylists = allPlaylists;
                 _myPlaylists = myPlaylists;
                 _collectedPlaylists = collectedPlaylists;
               });
-              AppLogger.app('用户歌单获取成功，共 ${allPlaylists.length} 个歌单 (我的: ${myPlaylists.length}, 收藏: ${collectedPlaylists.length})');
             }
           }
         }
@@ -163,22 +162,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
   /// 打开登录页面
   Future<void> _openLogin() async {
-    final result = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const QrLoginPage(),
-      ),
-    );
-    
+    final result = await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const QrLoginPage()));
+
     if (result != null) {
       // 登录成功，重新加载用户数据
       await _loadUserData();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('登录成功！'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('登录成功！'), backgroundColor: Colors.green),
         );
       }
     }
@@ -195,7 +189,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _myPlaylists = [];
         _collectedPlaylists = [];
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -209,239 +203,256 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /// 刷新所有数据
+  Future<void> _refreshAllData() async {
+    if (!_isLoggedIn) return;
+
+    setState(() {
+      _isLoadingPlaylists = true;
+      _isLoadingAlbums = true;
+    });
+
+    try {
+      await Future.wait([_loadUserPlaylists(), _loadUserAlbums()]);
+    } finally {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('已刷新数据'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    }
+  }
+
+  /// 显示刷新菜单
+  void _showRefreshMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.refresh),
+                title: const Text('刷新数据'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _refreshAllData();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   /// 构建歌单导航栏
   Widget _buildPlaylistNavBar() {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            // 创建标签
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedPlaylistTab = 0;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedPlaylistTab == 0 
-                        ? Colors.white 
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: _selectedPlaylistTab == 0
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  // 创建标签
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedPlaylistTab = 0;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _selectedPlaylistTab == 0
+                              ? Colors.white
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: _selectedPlaylistTab == 0
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Stack(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(left: 12),
+                              child: Text(
+                                '创建',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
                             ),
-                          ]
-                        : null,
-                  ),
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: Text(
-                          '创建',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedPlaylistTab == 0
-                                ? Colors.deepPurple
-                                : Colors.grey[600],
-                          ),
+                            if (_myPlaylists.isNotEmpty)
+                              Positioned(
+                                top: 2,
+                                right: 8,
+                                child: Text(
+                                  '${_myPlaylists.length}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      // 右上角数量标签
-                      if (_myPlaylists.isNotEmpty)
-                        Positioned(
-                          top: 0,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              '${_myPlaylists.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                    ),
+                  ),
+                  // 收藏标签
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedPlaylistTab = 1;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _selectedPlaylistTab == 1
+                              ? Colors.white
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: _selectedPlaylistTab == 1
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
                         ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // 收藏标签
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedPlaylistTab = 1;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedPlaylistTab == 1 
-                        ? Colors.white 
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: _selectedPlaylistTab == 1
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                        child: Stack(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(left: 12),
+                              child: Text(
+                                '收藏',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
                             ),
-                          ]
-                        : null,
-                  ),
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: Text(
-                          '收藏',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedPlaylistTab == 1
-                                ? Colors.deepPurple
-                                : Colors.grey[600],
-                          ),
+                            if (_collectedPlaylists.isNotEmpty)
+                              Positioned(
+                                top: 2,
+                                right: 8,
+                                child: Text(
+                                  '${_collectedPlaylists.length}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      // 右上角数量标签
-                      if (_collectedPlaylists.isNotEmpty)
-                        Positioned(
-                          top: 0,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              '${_collectedPlaylists.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
+                    ),
+                  ),
+                  // 专辑标签
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedPlaylistTab = 2;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _selectedPlaylistTab == 2
+                              ? Colors.white
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: _selectedPlaylistTab == 2
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
                         ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // 专辑标签
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedPlaylistTab = 2;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedPlaylistTab == 2 
-                        ? Colors.white 
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(6),
-                    boxShadow: _selectedPlaylistTab == 2
-                        ? [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                        child: Stack(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(left: 12),
+                              child: Text(
+                                '专辑',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
                             ),
-                          ]
-                        : null,
-                  ),
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: Text(
-                          '专辑',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedPlaylistTab == 2
-                                ? Colors.deepPurple
-                                : Colors.grey[600],
-                          ),
+                            if (_albums.isNotEmpty)
+                              Positioned(
+                                top: 2,
+                                right: 8,
+                                child: Text(
+                                  '${_albums.length}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      // 右上角数量标签
-                      if (_albums.isNotEmpty)
-                        Positioned(
-                          top: 0,
-                          right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 16,
-                              minHeight: 16,
-                            ),
-                            child: Text(
-                              '${_albums.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          // 更多按钮
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.more_horiz, size: 20),
+              onPressed: _showRefreshMenu,
+              tooltip: '更多操作',
+              padding: const EdgeInsets.all(8),
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -452,17 +463,9 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
   }
@@ -474,7 +477,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final playCount = playlist['playCount'] ?? 0;
     final coverImgUrl = playlist['coverImgUrl'] ?? '';
     final description = playlist['description'] ?? '';
-    
+
     return _buildUnifiedListItem(
       title: name,
       subtitle: description,
@@ -485,13 +488,12 @@ class _ProfilePageState extends State<ProfilePage> {
         _buildListDetail(Icons.play_arrow, _formatPlayCount(playCount)),
       ],
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('点击了歌单: $name')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('点击了歌单: $name')));
       },
     );
   }
-
 
   /// 格式化播放次数
   String _formatPlayCount(int count) {
@@ -518,13 +520,12 @@ class _ProfilePageState extends State<ProfilePage> {
         _buildListDetail(Icons.calendar_today, _formatSubTime(album.subTime)),
       ],
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('点击了专辑: ${album.name}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('点击了专辑: ${album.name}')));
       },
     );
   }
-
 
   /// 格式化订阅时间
   String _formatSubTime(int timestamp) {
@@ -628,11 +629,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ],
                       const SizedBox(height: 6),
                       // 详细信息行
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 4,
-                        children: details,
-                      ),
+                      Wrap(spacing: 12, runSpacing: 4, children: details),
                     ],
                   ),
                 ),
@@ -653,11 +650,7 @@ class _ProfilePageState extends State<ProfilePage> {
         color: Colors.grey[200],
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(
-        icon,
-        size: 24,
-        color: Colors.grey[500],
-      ),
+      child: Icon(icon, size: 24, color: Colors.grey[500]),
     );
   }
 
@@ -668,13 +661,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Icon(icon, size: 14, color: Colors.grey[500]),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }
@@ -723,7 +710,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-            
+
             // 用户信息头部
             SliverToBoxAdapter(
               child: Padding(
@@ -731,16 +718,18 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   children: [
                     const SizedBox(height: 40),
-                    
+
                     // 用户头像
                     if (_userAccountInfo?['avatarUrl'] != null)
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: NetworkImage(_userAccountInfo!['avatarUrl']),
+                        backgroundImage: NetworkImage(
+                          _userAccountInfo!['avatarUrl'],
+                        ),
                         backgroundColor: Colors.grey[300],
                       ),
                     const SizedBox(height: 16),
-                    
+
                     // 用户昵称
                     if (_userAccountInfo?['nickname'] != null)
                       Text(
@@ -751,20 +740,17 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                     const SizedBox(height: 8),
-                    
+
                     // 用户签名
-                    if (_userAccountInfo?['signature'] != null && 
+                    if (_userAccountInfo?['signature'] != null &&
                         _userAccountInfo!['signature'].toString().isNotEmpty)
                       Text(
                         _userAccountInfo!['signature'],
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                         textAlign: TextAlign.center,
                       ),
                     const SizedBox(height: 24),
-                    
+
                     // 用户统计信息
                     Wrap(
                       alignment: WrapAlignment.spaceEvenly,
@@ -773,22 +759,22 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         if (_userAccountInfo?['followeds'] != null)
                           _buildStatItem(
-                            '粉丝', 
+                            '粉丝',
                             _userAccountInfo!['followeds'].toString(),
                           ),
                         if (_userAccountInfo?['follows'] != null)
                           _buildStatItem(
-                            '关注', 
+                            '关注',
                             _userAccountInfo!['follows'].toString(),
                           ),
                         if (_userAccountInfo?['level'] != null)
                           _buildStatItem(
-                            '等级', 
+                            '等级',
                             'Lv.${_userAccountInfo!['level']}',
                           ),
                         if (_userAccountInfo?['listenSongs'] != null)
                           _buildStatItem(
-                            '听歌', 
+                            '听歌',
                             _userAccountInfo!['listenSongs'].toString(),
                           ),
                       ],
@@ -798,7 +784,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-            
+
             // 歌单区域背景
             SliverToBoxAdapter(
               child: Container(
@@ -812,13 +798,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: const SizedBox(height: 8),
               ),
             ),
-            
+
             // 歌单导航栏
             if (_userPlaylists.isNotEmpty || _isLoadingPlaylists)
-              SliverToBoxAdapter(
-                child: _buildPlaylistNavBar(),
-              ),
-            
+              SliverToBoxAdapter(child: _buildPlaylistNavBar()),
+
             // 当前选中的内容列表
             if (_selectedPlaylistTab == 0 || _selectedPlaylistTab == 1)
               // 歌单列表
@@ -841,14 +825,14 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: Container(
                       color: Theme.of(context).scaffoldBackgroundColor,
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 32,
+                        ),
                         child: Center(
                           child: Text(
                             '暂无创建的歌单',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
                           ),
                         ),
                       ),
@@ -865,58 +849,18 @@ class _ProfilePageState extends State<ProfilePage> {
                     },
                   )
               else if (_collectedPlaylists.isEmpty)
-                  SliverToBoxAdapter(
-                    child: Container(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 32),
-                        child: Center(
-                          child: Text(
-                            '暂无收藏的歌单',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  SliverList.builder(
-                    itemCount: _collectedPlaylists.length,
-                    itemBuilder: (context, index) {
-                      return Container(
-                        color: Theme.of(context).scaffoldBackgroundColor,
-                        child: _buildPlaylistItem(_collectedPlaylists[index]),
-                      );
-                    },
-                  )
-            else if (_isLoadingAlbums)
-                SliverToBoxAdapter(
-                  child: Container(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    child: const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                  ),
-                )
-              else if (_albums.isEmpty)
                 SliverToBoxAdapter(
                   child: Container(
                     color: Theme.of(context).scaffoldBackgroundColor,
                     child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 32,
+                      ),
                       child: Center(
                         child: Text(
-                          '暂无收藏的专辑',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
+                          '暂无收藏的歌单',
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                       ),
                     ),
@@ -924,15 +868,52 @@ class _ProfilePageState extends State<ProfilePage> {
                 )
               else
                 SliverList.builder(
-                  itemCount: _albums.length,
+                  itemCount: _collectedPlaylists.length,
                   itemBuilder: (context, index) {
                     return Container(
                       color: Theme.of(context).scaffoldBackgroundColor,
-                      child: _buildAlbumItem(_albums[index]),
+                      child: _buildPlaylistItem(_collectedPlaylists[index]),
                     );
                   },
+                )
+            else if (_isLoadingAlbums)
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
                 ),
-            
+              )
+            else if (_albums.isEmpty)
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+                    child: Center(
+                      child: Text(
+                        '暂无收藏的专辑',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverList.builder(
+                itemCount: _albums.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    child: _buildAlbumItem(_albums[index]),
+                  );
+                },
+              ),
+
             // 完全无歌单的情况
             if (_userPlaylists.isEmpty && !_isLoadingPlaylists)
               SliverToBoxAdapter(
@@ -943,16 +924,13 @@ class _ProfilePageState extends State<ProfilePage> {
                       padding: EdgeInsets.all(32),
                       child: Text(
                         '暂无歌单',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                     ),
                   ),
                 ),
               ),
-            
+
             // 底部安全区域
             SliverToBoxAdapter(
               child: Container(
@@ -975,7 +953,9 @@ class _ProfilePageState extends State<ProfilePage> {
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+            color: Theme.of(
+              context,
+            ).colorScheme.surfaceVariant.withOpacity(0.3),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
@@ -1005,7 +985,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
-              
+
               // 扫码登录按钮
               SizedBox(
                 width: double.infinity,
@@ -1013,10 +993,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: ElevatedButton.icon(
                   onPressed: _openLogin,
                   icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text(
-                    '扫码登录',
-                    style: TextStyle(fontSize: 16),
-                  ),
+                  label: const Text('扫码登录', style: TextStyle(fontSize: 16)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
