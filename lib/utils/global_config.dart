@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'encrypted_config_manager.dart';
 
 /// 全局配置管理器
@@ -78,13 +79,22 @@ class GlobalConfig {
   /// 设置用户信息
   Future<void> setUserInfo(Map<String, dynamic> userInfo) async {
     _ensureInitialized();
-    await _configManager.setString(userInfoKey, userInfo.toString());
+    await _configManager.setString(userInfoKey, jsonEncode(userInfo));
   }
 
   /// 获取用户信息
-  String? getUserInfo() {
+  Map<String, dynamic>? getUserInfo() {
     _ensureInitialized();
-    return _configManager.getString(userInfoKey);
+    final userInfoStr = _configManager.getString(userInfoKey);
+    if (userInfoStr != null && userInfoStr.isNotEmpty) {
+      try {
+        return jsonDecode(userInfoStr) as Map<String, dynamic>;
+      } catch (e) {
+        print('[CONFIG] 解析用户信息JSON失败: $e');
+        return null;
+      }
+    }
+    return null;
   }
 
   /// 清除用户数据

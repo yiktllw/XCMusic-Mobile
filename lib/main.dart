@@ -1,30 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:netease_cloud_music_api/netease_cloud_music_api.dart';
 import 'services/api_manager.dart';
+import 'services/login_service.dart';
 import 'pages/qr_login_page.dart';
 import 'pages/debug_page.dart';
 import 'utils/global_config.dart';
+import 'utils/app_logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // 初始化日志系统
+  AppLogger().initialize();
+  
+  // 将应用日志系统接入到API库
+  ApiLogManager.setLogger(AppLogger.createApiAdapter());
+  
   // 初始化全局配置管理器
   try {
-    print('正在初始化全局配置管理器...');
+    AppLogger.app('正在初始化全局配置管理器...');
     final globalConfig = GlobalConfig();
-    print('GlobalConfig实例创建完成，初始化状态: ${globalConfig.isInitialized ? "已初始化" : "未初始化"}');
+    AppLogger.config('GlobalConfig实例创建完成，初始化状态: ${globalConfig.isInitialized ? "已初始化" : "未初始化"}');
     
     await globalConfig.initialize();
-    print('全局配置管理器初始化成功，当前状态: ${globalConfig.isInitialized ? "已初始化" : "未初始化"}');
+    AppLogger.config('全局配置管理器初始化成功，当前状态: ${globalConfig.isInitialized ? "已初始化" : "未初始化"}');
   } catch (e) {
-    print('全局配置管理器初始化失败: $e');
+    AppLogger.error('全局配置管理器初始化失败', e);
   }
   
   // 初始化全局API服务
   try {
     await ApiManager().init();
-    print('API服务初始化成功');
+    AppLogger.api('API服务初始化成功');
   } catch (e) {
-    print('API服务初始化失败: $e');
+    AppLogger.error('API服务初始化失败', e);
     // 即使初始化失败也继续运行，让用户看到错误信息
   }
   
@@ -58,8 +67,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   bool _isLoggedIn = false;
-  String? _userInfo;
+  Map<String, dynamic>? _userAccountInfo;
   final GlobalConfig _globalConfig = GlobalConfig();
+  final LoginService _loginService = LoginService();
 
   @override
   void initState() {
@@ -75,11 +85,25 @@ class _HomePageState extends State<HomePage> {
         final userInfo = _globalConfig.getUserInfo();
         setState(() {
           _isLoggedIn = isLoggedIn;
-          _userInfo = userInfo;
+          _userAccountInfo = userInfo;
         });
+        
+        // 如果已登录，总是尝试获取最新的用户信息
+        if (isLoggedIn) {
+          AppLogger.app('已登录状态，正在获取最新用户信息...');
+          final userDetail = await _loginService.getSmartUserInfo();
+          if (userDetail != null) {
+            setState(() {
+              _userAccountInfo = _loginService.getSavedUserAccount();
+            });
+            AppLogger.app('用户信息获取成功');
+          } else {
+            AppLogger.warning('用户信息获取失败');
+          }
+        }
       }
     } catch (e) {
-      print('加载登录状态失败: $e');
+      AppLogger.error('加载登录状态失败', e);
     }
   }
 
@@ -92,47 +116,16 @@ class _HomePageState extends State<HomePage> {
     );
     
     if (result != null) {
-      // 登录成功，保存到全局配置
-      try {
-        await _globalConfig.setLoggedIn(true);
-        
-        // 从result中提取cookie信息
-        String? cookieString;
-        if (result is Map<String, dynamic>) {
-          cookieString = result['cookie'] as String?;
-        } else {
-          // 兼容旧格式，如果result有cookie属性
-          cookieString = result.cookie;
-        }
-        
-        if (cookieString != null && cookieString.isNotEmpty) {
-          await _globalConfig.setUserCookie(cookieString);
-        }
-        await _globalConfig.setUserInfo({'loginTime': DateTime.now().toString()});
-        
-        setState(() {
-          _isLoggedIn = true;
-          _userInfo = '登录成功! Cookie: ${cookieString?.substring(0, 50) ?? 'N/A'}...';
-        });
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('登录成功！'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        print('保存登录状态失败: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('保存登录状态失败: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      // 登录成功，重新加载用户信息
+      await _loadLoginStatus();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('登录成功！'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     }
   }
@@ -140,10 +133,10 @@ class _HomePageState extends State<HomePage> {
   /// 退出登录
   Future<void> _logout() async {
     try {
-      await _globalConfig.clearUserData();
+      await _loginService.clearSavedLoginInfo();
       setState(() {
         _isLoggedIn = false;
-        _userInfo = null;
+        _userAccountInfo = null;
       });
       
       if (mounted) {
@@ -155,7 +148,7 @@ class _HomePageState extends State<HomePage> {
         );
       }
     } catch (e) {
-      print('退出登录失败: $e');
+      AppLogger.error('退出登录失败', e);
     }
   }
 
@@ -165,6 +158,32 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(
         builder: (context) => const DebugPage(),
       ),
+    );
+  }
+
+  /// 构建统计信息项
+  Widget _buildStatItem(String label, String value) {
+    final hasBackground = _userAccountInfo?['backgroundUrl'] != null;
+    final textColor = hasBackground ? Colors.white : null;
+    
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: textColor,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: hasBackground ? Colors.white.withOpacity(0.9) : null,
+          ),
+        ),
+      ],
     );
   }
 
@@ -234,9 +253,22 @@ class _HomePageState extends State<HomePage> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    // 使用用户背景图片作为背景，如果没有则使用默认颜色
+                    image: _userAccountInfo?['backgroundUrl'] != null 
+                        ? DecorationImage(
+                            image: NetworkImage(_userAccountInfo!['backgroundUrl']),
+                            fit: BoxFit.cover,
+                            colorFilter: ColorFilter.mode(
+                              Colors.black.withOpacity(0.3),
+                              BlendMode.darken,
+                            ),
+                          )
+                        : null,
+                    color: _userAccountInfo?['backgroundUrl'] == null 
+                        ? Colors.green.withOpacity(0.1) 
+                        : null,
                   ),
                   child: Column(
                     children: [
@@ -246,20 +278,67 @@ class _HomePageState extends State<HomePage> {
                         size: 48,
                       ),
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         '已登录',
                         style: TextStyle(
                           fontSize: 18,
-                          color: Colors.green,
+                          color: _userAccountInfo?['backgroundUrl'] != null ? Colors.white : Colors.green,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (_userInfo != null) ...[
+                      if (_userAccountInfo != null) ...[
+                        const SizedBox(height: 16),
+                        // 用户头像
+                        if (_userAccountInfo!['avatarUrl'] != null)
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundImage: NetworkImage(_userAccountInfo!['avatarUrl']),
+                            backgroundColor: Colors.grey[300],
+                          ),
+                        const SizedBox(height: 12),
+                        // 用户昵称
+                        if (_userAccountInfo!['nickname'] != null)
+                          Text(
+                            _userAccountInfo!['nickname'],
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: _userAccountInfo?['backgroundUrl'] != null ? Colors.white : null,
+                            ),
+                          ),
                         const SizedBox(height: 8),
-                        Text(
-                          _userInfo!,
-                          style: const TextStyle(fontSize: 12),
-                          textAlign: TextAlign.center,
+                        // 用户签名
+                        if (_userAccountInfo!['signature'] != null && _userAccountInfo!['signature'].toString().isNotEmpty)
+                          Text(
+                            _userAccountInfo!['signature'],
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: _userAccountInfo?['backgroundUrl'] != null 
+                                  ? Colors.white.withOpacity(0.9)
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        const SizedBox(height: 12),
+                        // 用户统计信息
+                        Wrap(
+                          alignment: WrapAlignment.spaceEvenly,
+                          spacing: 16,
+                          runSpacing: 8,
+                          children: [
+                            if (_userAccountInfo!['followeds'] != null)
+                              _buildStatItem('粉丝', _userAccountInfo!['followeds'].toString()),
+                            if (_userAccountInfo!['follows'] != null)
+                              _buildStatItem('关注', _userAccountInfo!['follows'].toString()),
+                            if (_userAccountInfo!['level'] != null)
+                              _buildStatItem('等级', 'Lv.${_userAccountInfo!['level']}'),
+                            if (_userAccountInfo!['listenSongs'] != null)
+                              _buildStatItem('听歌', _userAccountInfo!['listenSongs'].toString()),
+                            if (_userAccountInfo!['playlistCount'] != null)
+                              _buildStatItem('歌单', _userAccountInfo!['playlistCount'].toString()),
+                            if (_userAccountInfo!['eventCount'] != null)
+                              _buildStatItem('动态', _userAccountInfo!['eventCount'].toString()),
+                          ],
                         ),
                       ],
                     ],

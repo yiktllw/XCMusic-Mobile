@@ -13,11 +13,11 @@ class ApiManager {
   Completer<void>? _initCompleter;
 
   /// 获取API实例
-  NeteaseCloudMusicApiFinal get api {
+  ApiCaller get api {
     if (!_initialized) {
       throw StateError('API未初始化，请先调用 ApiManager().init()');
     }
-    return _api!;
+    return _api!.api;
   }
 
   /// 初始化API（应该在main函数中调用）
