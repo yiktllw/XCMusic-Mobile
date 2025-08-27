@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/common_drawer.dart';
 
 /// 主页内容页面
 class HomePageContent extends StatefulWidget {
@@ -12,27 +13,31 @@ class _HomePageContentState extends State<HomePageContent> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: const Center(
+      // 使用共用侧栏
+      drawer: const CommonDrawer(),
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.music_note, size: 80, color: Colors.deepPurple),
-            SizedBox(height: 16),
-            Text(
+            const Icon(Icons.music_note, size: 64, color: Colors.deepPurple),
+            const SizedBox(height: 12),
+            const Text(
               'XCMusic',
               style: TextStyle(
-                fontSize: 32,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: Colors.deepPurple,
               ),
             ),
-            SizedBox(height: 8),
-            Text('音乐播放器', style: TextStyle(fontSize: 16, color: Colors.grey)),
-            SizedBox(height: 40),
-            Text(
-              '主页功能正在开发中...',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+            const SizedBox(height: 6),
+            const Text(
+              '移动端音乐播放器',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
             ),
+            const SizedBox(height: 24),
           ],
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:xcmusic_mobile/utils/app_logger.dart';
 
 /// 通知类型枚举
 enum NotificationType { success, error, warning, info }
@@ -35,7 +36,7 @@ class NotificationService {
 
       final overlayState = _getOverlayState(context);
       if (overlayState == null) {
-        print('无法获取Overlay，无法显示通知: $message');
+        AppLogger.warning('无法获取Overlay，无法显示通知: $message');
         return;
       }
 
@@ -60,7 +61,7 @@ class NotificationService {
         _currentEntry = null;
       });
     } catch (e) {
-      print('显示通知时出错: $e');
+      AppLogger.error('显示通知时出错: $e');
     }
   }
 

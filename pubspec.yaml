@@ -48,11 +48,20 @@ dependencies:
   # Path provider for getting app directories
   path_provider: ^2.1.4
 
+  # Shared preferences for settings storage
+  shared_preferences: ^2.2.2
+
+  # Audio player for music playback
+  audioplayers: ^6.0.0
+
   # HTTP client for API requests
   http: ^1.2.0
 
   # QR code display
   qr_flutter: ^4.1.0
+
+  # State management
+  provider: ^6.1.2
 
   # API module path dependency
   netease_cloud_music_api:

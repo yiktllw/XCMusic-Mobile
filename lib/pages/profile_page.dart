@@ -8,6 +8,7 @@ import '../utils/global_config.dart';
 import '../utils/app_logger.dart';
 import 'qr_login_page.dart';
 import 'debug_page.dart';
+import '../widgets/common_drawer.dart';
 
 /// 个人资料页面
 class ProfilePage extends StatefulWidget {
@@ -178,31 +179,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// 退出登录
-  Future<void> _logout() async {
-    try {
-      await _loginService.clearSavedLoginInfo();
-      setState(() {
-        _isLoggedIn = false;
-        _userAccountInfo = null;
-        _userPlaylists = [];
-        _myPlaylists = [];
-        _collectedPlaylists = [];
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已退出登录'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-    } catch (e) {
-      AppLogger.error('退出登录失败', e);
-    }
-  }
-
   /// 刷新所有数据
   Future<void> _refreshAllData() async {
     if (!_isLoggedIn) return;
@@ -254,13 +230,15 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildPlaylistNavBar() {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: [
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.grey[900] 
+                    : Colors.grey[100],
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -274,48 +252,60 @@ class _ProfilePageState extends State<ProfilePage> {
                         });
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: _selectedPlaylistTab == 0
-                              ? Colors.white
+                              ? (Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.grey[800] 
+                                  : Colors.white)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(6),
                           boxShadow: _selectedPlaylistTab == 0
                               ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.black.withValues(alpha: 0.3) 
+                                        : Colors.black.withValues(alpha: 0.1)),
                                     blurRadius: 4,
                                     offset: const Offset(0, 2),
                                   ),
                                 ]
                               : null,
                         ),
-                        child: Stack(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Padding(
-                              padding: EdgeInsets.only(left: 12),
-                              child: Text(
-                                '创建',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
+                            Text(
+                              '创建',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: _selectedPlaylistTab == 0
+                                    ? (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.white 
+                                        : Colors.black87)
+                                    : (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.grey[400] 
+                                        : Colors.grey[600]),
                               ),
                             ),
-                            if (_myPlaylists.isNotEmpty)
-                              Positioned(
-                                top: 2,
-                                right: 8,
-                                child: Text(
-                                  '${_myPlaylists.length}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black54,
-                                  ),
+                            if (_myPlaylists.isNotEmpty) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_myPlaylists.length}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _selectedPlaylistTab == 0
+                                      ? (Theme.of(context).brightness == Brightness.dark 
+                                          ? Colors.grey[300] 
+                                          : Colors.black54)
+                                      : (Theme.of(context).brightness == Brightness.dark 
+                                          ? Colors.grey[500] 
+                                          : Colors.grey[600]),
                                 ),
                               ),
+                            ],
                           ],
                         ),
                       ),
@@ -330,48 +320,60 @@ class _ProfilePageState extends State<ProfilePage> {
                         });
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: _selectedPlaylistTab == 1
-                              ? Colors.white
+                              ? (Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.grey[800] 
+                                  : Colors.white)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(6),
                           boxShadow: _selectedPlaylistTab == 1
                               ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.black.withValues(alpha: 0.3) 
+                                        : Colors.black.withValues(alpha: 0.1)),
                                     blurRadius: 4,
                                     offset: const Offset(0, 2),
                                   ),
                                 ]
                               : null,
                         ),
-                        child: Stack(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Padding(
-                              padding: EdgeInsets.only(left: 12),
-                              child: Text(
-                                '收藏',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
+                            Text(
+                              '收藏',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: _selectedPlaylistTab == 1
+                                    ? (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.white 
+                                        : Colors.black87)
+                                    : (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.grey[400] 
+                                        : Colors.grey[600]),
                               ),
                             ),
-                            if (_collectedPlaylists.isNotEmpty)
-                              Positioned(
-                                top: 2,
-                                right: 8,
-                                child: Text(
-                                  '${_collectedPlaylists.length}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black54,
-                                  ),
+                            if (_collectedPlaylists.isNotEmpty) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_collectedPlaylists.length}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _selectedPlaylistTab == 1
+                                      ? (Theme.of(context).brightness == Brightness.dark 
+                                          ? Colors.grey[300] 
+                                          : Colors.black54)
+                                      : (Theme.of(context).brightness == Brightness.dark 
+                                          ? Colors.grey[500] 
+                                          : Colors.grey[600]),
                                 ),
                               ),
+                            ],
                           ],
                         ),
                       ),
@@ -386,48 +388,60 @@ class _ProfilePageState extends State<ProfilePage> {
                         });
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: _selectedPlaylistTab == 2
-                              ? Colors.white
+                              ? (Theme.of(context).brightness == Brightness.dark 
+                                  ? Colors.grey[800] 
+                                  : Colors.white)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(6),
                           boxShadow: _selectedPlaylistTab == 2
                               ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.black.withValues(alpha: 0.3) 
+                                        : Colors.black.withValues(alpha: 0.1)),
                                     blurRadius: 4,
                                     offset: const Offset(0, 2),
                                   ),
                                 ]
                               : null,
                         ),
-                        child: Stack(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Padding(
-                              padding: EdgeInsets.only(left: 12),
-                              child: Text(
-                                '专辑',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
+                            Text(
+                              '专辑',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: _selectedPlaylistTab == 2
+                                    ? (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.white 
+                                        : Colors.black87)
+                                    : (Theme.of(context).brightness == Brightness.dark 
+                                        ? Colors.grey[400] 
+                                        : Colors.grey[600]),
                               ),
                             ),
-                            if (_albums.isNotEmpty)
-                              Positioned(
-                                top: 2,
-                                right: 8,
-                                child: Text(
-                                  '${_albums.length}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black54,
-                                  ),
+                            if (_albums.isNotEmpty) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_albums.length}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _selectedPlaylistTab == 2
+                                      ? (Theme.of(context).brightness == Brightness.dark 
+                                          ? Colors.grey[300] 
+                                          : Colors.black54)
+                                      : (Theme.of(context).brightness == Brightness.dark 
+                                          ? Colors.grey[500] 
+                                          : Colors.grey[600]),
                                 ),
                               ),
+                            ],
                           ],
                         ),
                       ),
@@ -440,16 +454,25 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(width: 8),
           // 更多按钮
           Container(
+            height: 40, // 明确设置高度以匹配标签栏按钮
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: Theme.of(context).brightness == Brightness.dark 
+                  ? Colors.grey[800] 
+                  : Colors.grey[100],
               borderRadius: BorderRadius.circular(8),
             ),
             child: IconButton(
-              icon: const Icon(Icons.more_horiz, size: 20),
+              icon: Icon(
+                Icons.more_horiz, 
+                size: 18,
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white 
+                    : Colors.black54,
+              ),
               onPressed: _showRefreshMenu,
               tooltip: '更多操作',
-              padding: const EdgeInsets.all(8),
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: const EdgeInsets.all(6),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
           ),
         ],
@@ -463,9 +486,9 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         Text(
           value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         ),
-        Text(label, style: const TextStyle(fontSize: 12)),
+        Text(label, style: const TextStyle(fontSize: 10)),
       ],
     );
   }
@@ -488,9 +511,22 @@ class _ProfilePageState extends State<ProfilePage> {
         _buildListDetail(Icons.play_arrow, _formatPlayCount(playCount)),
       ],
       onTap: () {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('点击了歌单: $name')));
+        final playlistId = playlist['id'];
+        if (playlistId != null) {
+          Navigator.pushNamed(
+            context,
+            '/playlist_detail',
+            arguments: {
+              'playlistId': playlistId.toString(),
+              'playlistName': playlist['name'],
+            },
+          );
+        } else {
+          AppLogger.warning('歌单ID为空，无法跳转到详情页面');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('歌单信息异常，无法打开')),
+          );
+        }
       },
     );
   }
@@ -513,7 +549,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return _buildUnifiedListItem(
       title: album.name,
       subtitle: album.artistNames,
-      imageUrl: album.picUrl,
+      imageUrl: "${album.picUrl}?param=100y100",
       fallbackIcon: Icons.album,
       details: [
         _buildListDetail(Icons.music_note, '${album.size}首'),
@@ -558,38 +594,38 @@ class _ProfilePageState extends State<ProfilePage> {
     required VoidCallback onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             child: Row(
               children: [
                 // 图片区域
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(5),
                   child: imageUrl.isNotEmpty
                       ? Image.network(
                           imageUrl,
-                          width: 60,
-                          height: 60,
+                          width: 42,
+                          height: 42,
                           fit: BoxFit.cover,
-                          cacheWidth: 120,
-                          cacheHeight: 120,
+                          cacheWidth: 84,
+                          cacheHeight: 84,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return _buildPlaceholder(fallbackIcon);
@@ -599,7 +635,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         )
                       : _buildPlaceholder(fallbackIcon),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 // 文本区域
                 Expanded(
                   child: Column(
@@ -610,26 +646,26 @@ class _ProfilePageState extends State<ProfilePage> {
                         title,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 13,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
                           subtitle,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 10,
                             color: Colors.grey[600],
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       // 详细信息行
-                      Wrap(spacing: 12, runSpacing: 4, children: details),
+                      Wrap(spacing: 8, runSpacing: 2, children: details),
                     ],
                   ),
                 ),
@@ -644,13 +680,13 @@ class _ProfilePageState extends State<ProfilePage> {
   /// 构建占位符
   Widget _buildPlaceholder(IconData icon) {
     return Container(
-      width: 60,
-      height: 60,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
         color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(5),
       ),
-      child: Icon(icon, size: 24, color: Colors.grey[500]),
+      child: Icon(icon, size: 18, color: Colors.grey[500]),
     );
   }
 
@@ -659,9 +695,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: Colors.grey[500]),
-        const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Icon(icon, size: 12, color: Colors.grey[500]),
+        const SizedBox(width: 3),
+        Text(text, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
       ],
     );
   }
@@ -674,6 +710,45 @@ class _ProfilePageState extends State<ProfilePage> {
   /// 构建已登录视图 - 普通模式
   Widget _buildLoggedInView() {
     return Scaffold(
+      // 添加AppBar以便侧栏正常工作
+      appBar: AppBar(
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark 
+              ? Brightness.light 
+              : Brightness.dark,
+          statusBarBrightness: Theme.of(context).brightness,
+        ),
+        title: const Text('我的'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white 
+            : Colors.black,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+            tooltip: '菜单',
+          ),
+        ),
+        actions: [
+          // 调试按钮
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const DebugPage(),
+                ),
+              );
+            },
+            tooltip: '调试信息',
+          ),
+        ],
+      ),
+      // 使用共用侧栏
+      drawer: const CommonDrawer(),
       body: SafeArea(
         child: CustomScrollView(
           // 添加物理效果优化
@@ -681,75 +756,45 @@ class _ProfilePageState extends State<ProfilePage> {
           // 添加缓存范围
           cacheExtent: 500,
           slivers: [
-            // 顶部操作栏
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    // 调试按钮
-                    IconButton(
-                      icon: const Icon(Icons.bug_report),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const DebugPage(),
-                          ),
-                        );
-                      },
-                      tooltip: '调试信息',
-                    ),
-                    const Spacer(),
-                    // 退出登录按钮
-                    IconButton(
-                      icon: const Icon(Icons.logout),
-                      onPressed: _logout,
-                      tooltip: '退出登录',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
             // 用户信息头部
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 20),
 
                     // 用户头像
                     if (_userAccountInfo?['avatarUrl'] != null)
                       CircleAvatar(
-                        radius: 50,
+                        radius: 40,
                         backgroundImage: NetworkImage(
                           _userAccountInfo!['avatarUrl'],
                         ),
                         backgroundColor: Colors.grey[300],
                       ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
                     // 用户昵称
                     if (_userAccountInfo?['nickname'] != null)
                       Text(
                         _userAccountInfo!['nickname'],
                         style: const TextStyle(
-                          fontSize: 24,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
 
                     // 用户签名
                     if (_userAccountInfo?['signature'] != null &&
                         _userAccountInfo!['signature'].toString().isNotEmpty)
                       Text(
                         _userAccountInfo!['signature'],
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                         textAlign: TextAlign.center,
                       ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
                     // 用户统计信息
                     Wrap(
@@ -935,7 +980,7 @@ class _ProfilePageState extends State<ProfilePage> {
             SliverToBoxAdapter(
               child: Container(
                 color: Theme.of(context).scaffoldBackgroundColor,
-                height: 20,
+                height: 100, // 增加底部空白从20到100
               ),
             ),
           ],
@@ -955,7 +1000,7 @@ class _ProfilePageState extends State<ProfilePage> {
           decoration: BoxDecoration(
             color: Theme.of(
               context,
-            ).colorScheme.surfaceVariant.withOpacity(0.3),
+            ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(

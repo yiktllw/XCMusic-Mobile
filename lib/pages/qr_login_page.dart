@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:xcmusic_mobile/utils/app_logger.dart';
 import '../services/login_service.dart';
 import '../services/notification_service.dart';
 
@@ -145,14 +146,14 @@ class _QrLoginPageState extends State<QrLoginPage> {
             if (mounted) {
               _notificationService.showSuccess('登录成功！', context);
               // 添加调试信息
-              print('[QR_LOGIN] 登录成功，result: $result');
+              AppLogger.info('[QR_LOGIN] 登录成功，result: $result');
               // 构造返回对象，确保包含cookie信息
               final loginSuccessResult = {
                 'success': true,
                 'cookie': result['cookie'], // 从result中提取cookie
                 'data': result, // 保留原始数据
               };
-              print('[QR_LOGIN] 构造的返回对象: $loginSuccessResult');
+              AppLogger.info('[QR_LOGIN] 构造的返回对象: $loginSuccessResult');
               Navigator.of(context).pop(loginSuccessResult);
             }
             break;
@@ -167,7 +168,7 @@ class _QrLoginPageState extends State<QrLoginPage> {
 
   /// 刷新二维码
   void _refreshQrCode() {
-    print('[QR] 用户点击刷新按钮');
+    AppLogger.info('[QR] 用户点击刷新按钮');
     _pollTimer?.cancel();
     setState(() {
       _qrKey = null;
@@ -278,8 +279,8 @@ class _QrLoginPageState extends State<QrLoginPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _getStatusColor().withOpacity(0.1),
-                  border: Border.all(color: _getStatusColor().withOpacity(0.3)),
+                  color: _getStatusColor().withValues(alpha: 0.1),
+                  border: Border.all(color: _getStatusColor().withValues(alpha: 0.3)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(

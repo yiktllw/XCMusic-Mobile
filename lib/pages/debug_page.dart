@@ -293,7 +293,7 @@ class _DebugPageState extends State<DebugPage> {
       }
 
       // 测试一个简单的API调用
-      final result = await ApiManager().call('loginQrKey', {});
+      final result = await ApiManager().api.loginQrKey();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -337,8 +337,8 @@ class _DebugPageState extends State<DebugPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('确认'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('确认'),
           ),
         ],
       ),

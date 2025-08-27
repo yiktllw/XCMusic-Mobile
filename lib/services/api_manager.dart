@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:netease_cloud_music_api/netease_cloud_music_api.dart';
+import 'package:xcmusic_mobile/utils/app_logger.dart';
 
 /// 全局API服务管理器
 /// 确保整个应用程序共用一个API实例
@@ -32,14 +33,14 @@ class ApiManager {
     _initCompleter = Completer<void>();
 
     try {
-      print('正在初始化网易云音乐API...');
+      AppLogger.api('正在初始化网易云音乐API...');
       _api = NeteaseCloudMusicApiFinal();
       await _api!.init();
       _initialized = true;
-      print('网易云音乐API初始化完成');
+      AppLogger.api('网易云音乐API初始化完成');
       _initCompleter!.complete();
     } catch (e) {
-      print('网易云音乐API初始化失败: $e');
+      AppLogger.api('网易云音乐API初始化失败: $e');
       _initCompleter!.completeError(e);
       _initCompleter = null;
       rethrow;

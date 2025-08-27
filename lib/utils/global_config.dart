@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:xcmusic_mobile/utils/app_logger.dart';
+
 import 'encrypted_config_manager.dart';
 
 /// 全局配置管理器
@@ -90,7 +92,7 @@ class GlobalConfig {
       try {
         return jsonDecode(userInfoStr) as Map<String, dynamic>;
       } catch (e) {
-        print('[CONFIG] 解析用户信息JSON失败: $e');
+        AppLogger.error('[CONFIG] 解析用户信息JSON失败: $e');
         return null;
       }
     }
