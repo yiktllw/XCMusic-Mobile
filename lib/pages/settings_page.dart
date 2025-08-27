@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:xcmusic_mobile/utils/app_logger.dart';
 import '../services/theme_service.dart';
+import '../utils/top_banner.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -68,8 +69,9 @@ class _SettingsPageState extends State<SettingsPage> {
         AppLogger.info('设置已保存: auto_play=$_autoPlay, volume=$_volume');
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('设置已保存')),
+          TopBanner.showSuccess(
+            context,
+            '设置已保存',
           );
         }
         return; // 成功保存，退出重试循环
@@ -82,8 +84,9 @@ class _SettingsPageState extends State<SettingsPage> {
         } else {
           AppLogger.info('多次尝试后仍无法保存设置');
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('设置保存失败，请稍后重试')),
+            TopBanner.showError(
+              context,
+              '设置保存失败，请稍后重试',
             );
           }
         }

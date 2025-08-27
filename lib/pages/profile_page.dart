@@ -6,6 +6,7 @@ import '../services/album_service.dart';
 import '../models/album.dart';
 import '../utils/global_config.dart';
 import '../utils/app_logger.dart';
+import '../utils/top_banner.dart';
 import 'qr_login_page.dart';
 import 'debug_page.dart';
 import '../widgets/common_drawer.dart';
@@ -172,8 +173,9 @@ class _ProfilePageState extends State<ProfilePage> {
       await _loadUserData();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('登录成功！'), backgroundColor: Colors.green),
+        TopBanner.showSuccess(
+          context,
+          '登录成功！',
         );
       }
     }
@@ -192,11 +194,10 @@ class _ProfilePageState extends State<ProfilePage> {
       await Future.wait([_loadUserPlaylists(), _loadUserAlbums()]);
     } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已刷新数据'),
-            duration: Duration(seconds: 1),
-          ),
+        TopBanner.showSuccess(
+          context,
+          '已刷新数据',
+          duration: const Duration(seconds: 1),
         );
       }
     }
@@ -523,8 +524,9 @@ class _ProfilePageState extends State<ProfilePage> {
           );
         } else {
           AppLogger.warning('歌单ID为空，无法跳转到详情页面');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('歌单信息异常，无法打开')),
+          TopBanner.showError(
+            context,
+            '歌单信息异常，无法打开',
           );
         }
       },
@@ -556,9 +558,10 @@ class _ProfilePageState extends State<ProfilePage> {
         _buildListDetail(Icons.calendar_today, _formatSubTime(album.subTime)),
       ],
       onTap: () {
-        ScaffoldMessenger.of(
+        TopBanner.showInfo(
           context,
-        ).showSnackBar(SnackBar(content: Text('点击了专辑: ${album.name}')));
+          '点击了专辑: ${album.name}',
+        );
       },
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/global_config.dart';
 import '../services/api_manager.dart';
+import '../utils/top_banner.dart';
 
 /// 调试信息页面
 /// 显示全局配置状态和API状态信息
@@ -273,11 +274,10 @@ class _DebugPageState extends State<DebugPage> {
     ApiManager().setApiLogging(!currentState);
     setState(() {});
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('API日志已${!currentState ? '开启' : '关闭'}'),
-        duration: const Duration(seconds: 2),
-      ),
+    TopBanner.showInfo(
+      context,
+      'API日志已${!currentState ? '开启' : '关闭'}',
+      duration: const Duration(seconds: 2),
     );
   }
 
@@ -296,22 +296,18 @@ class _DebugPageState extends State<DebugPage> {
       final result = await ApiManager().api.loginQrKey();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('API测试成功: ${result['status']}'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
+        TopBanner.showSuccess(
+          context,
+          'API测试成功: ${result['status']}',
+          duration: const Duration(seconds: 3),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('API测试失败: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
+        TopBanner.showError(
+          context,
+          'API测试失败: $e',
+          duration: const Duration(seconds: 3),
         );
       }
     } finally {
@@ -358,22 +354,18 @@ class _DebugPageState extends State<DebugPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('配置已清空'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 2),
-          ),
+        TopBanner.showWarning(
+          context,
+          '配置已清空',
+          duration: const Duration(seconds: 2),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('清空配置失败: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
+        TopBanner.showError(
+          context,
+          '清空配置失败: $e',
+          duration: const Duration(seconds: 3),
         );
       }
     } finally {

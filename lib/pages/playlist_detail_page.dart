@@ -4,6 +4,7 @@ import '../models/playlist.dart';
 import '../services/playlist_service.dart';
 import '../services/player_service.dart';
 import '../widgets/virtual_song_list.dart';
+import '../utils/top_banner.dart';
 
 /// 歌单详情页面
 class PlaylistDetailPage extends StatefulWidget {
@@ -127,8 +128,9 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
         _isLoadingMoreTracks = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载更多歌曲失败: ${e.toString()}')),
+        TopBanner.showError(
+          context,
+          '加载更多歌曲失败: ${e.toString()}',
         );
       }
     }
@@ -154,8 +156,9 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
     if (_currentPlayingId == track.id && playerService.isPlaying) {
       // 当前正在播放，暂停
       playerService.pause();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已暂停: ${track.name}')),
+      TopBanner.showInfo(
+        context,
+        '已暂停: ${track.name}',
       );
     } else {
       // 开始播放或恢复播放
@@ -170,8 +173,9 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
         playerService.play();
       }
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('正在播放: ${track.name}')),
+      TopBanner.showSuccess(
+        context,
+        '正在播放: ${track.name}',
       );
     }
   }
@@ -184,21 +188,9 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
     );
   }
 
-  /// 显示搜索对话框
+  /// 显示搜索功能
   void _showSearchDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _SearchDialog(
-        tracks: _tracks,
-        onTrackSelected: (track) {
-          final index = _tracks.indexWhere((t) => t.id == track.id);
-          if (index != -1) {
-            _songListController.scrollToTrack(track.id);
-            _onTrackTap(track, index);
-          }
-        },
-      ),
-    );
+    _songListController.showSearch();
   }
 
   /// 播放全部

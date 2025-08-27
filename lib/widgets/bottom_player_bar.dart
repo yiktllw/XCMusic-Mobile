@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/playlist.dart';
 import '../services/player_service.dart';
 import '../pages/player_page.dart';
+import '../utils/top_banner.dart';
 
 /// 底部播放栏组件
 class BottomPlayerBar extends StatelessWidget {
@@ -425,11 +426,10 @@ class PlaylistPanel extends StatelessWidget {
     
     playerService.setPlayMode(newMode);
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('切换到${_getPlayModeTooltip(newMode)}'),
-        duration: const Duration(seconds: 1),
-      ),
+    TopBanner.showInfo(
+      context,
+      '切换到${_getPlayModeTooltip(newMode)}',
+      duration: const Duration(seconds: 1),
     );
   }
 

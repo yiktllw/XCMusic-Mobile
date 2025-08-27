@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../pages/settings_page.dart';
 import '../services/login_service.dart';
+import '../utils/top_banner.dart';
 
 /// 共用的侧栏组件
 class CommonDrawer extends StatelessWidget {
@@ -12,14 +13,16 @@ class CommonDrawer extends StatelessWidget {
       await loginService.logout();
       if (context.mounted) {
         // 显示成功消息
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已退出登录')),
+        TopBanner.showSuccess(
+          context,
+          '已退出登录',
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('退出登录失败: $e')),
+        TopBanner.showError(
+          context,
+          '退出登录失败: $e',
         );
       }
     }

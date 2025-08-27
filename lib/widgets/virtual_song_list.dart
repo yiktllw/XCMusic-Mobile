@@ -59,12 +59,15 @@ class VirtualSongList extends StatefulWidget {
 
 class _VirtualSongListState extends State<VirtualSongList> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   List<Track> _filteredTracks = [];
+  bool _isSearchVisible = false;
 
   @override
   void initState() {
     super.initState();
     _filteredTracks = widget.tracks;
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
@@ -73,6 +76,7 @@ class _VirtualSongListState extends State<VirtualSongList> {
     if (oldWidget.tracks != widget.tracks) {
       setState(() {
         _filteredTracks = widget.tracks;
+        _filterTracks();
       });
     }
   }
@@ -80,7 +84,62 @@ class _VirtualSongListState extends State<VirtualSongList> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  /// 搜索内容变化处理
+  void _onSearchChanged() {
+    _filterTracks();
+  }
+
+  /// 过滤歌曲列表
+  void _filterTracks() {
+    final query = _searchController.text.toLowerCase().trim();
+    
+    setState(() {
+      if (query.isEmpty) {
+        _filteredTracks = widget.tracks;
+      } else {
+        _filteredTracks = widget.tracks.where((track) {
+          // 搜索歌曲名、歌手、专辑（忽略大小写）
+          final songName = track.name.toLowerCase();
+          final artistNames = track.artistNames.toLowerCase();
+          final albumName = track.album.name.toLowerCase();
+          
+          return songName.contains(query) ||
+                 artistNames.contains(query) ||
+                 albumName.contains(query);
+        }).toList();
+      }
+    });
+  }
+
+  /// 切换搜索框显示状态
+  void _toggleSearch() {
+    setState(() {
+      _isSearchVisible = !_isSearchVisible;
+      if (!_isSearchVisible) {
+        _searchController.clear();
+        _filteredTracks = widget.tracks;
+      }
+    });
+  }
+
+  /// 显示搜索框
+  void _showSearch() {
+    setState(() {
+      _isSearchVisible = true;
+    });
+  }
+
+  /// 隐藏搜索框
+  void _hideSearch() {
+    setState(() {
+      _isSearchVisible = false;
+      _searchController.clear();
+      _filteredTracks = widget.tracks;
+    });
   }
 
   /// 定位到指定歌曲ID
@@ -98,68 +157,139 @@ class _VirtualSongListState extends State<VirtualSongList> {
 
   @override
   Widget build(BuildContext context) {
+    // 处理空状态
     if (_filteredTracks.isEmpty) {
-      return _buildEmptyState();
+      return Stack(
+        children: [
+          _buildEmptyState(),
+          if (widget.enableSearch && _isSearchVisible) _buildFloatingSearchBar(),
+        ],
+      );
     }
 
     // 如果有头部内容，使用CustomScrollView
     if (widget.headerBuilder != null) {
-      return CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // 头部内容
-          SliverToBoxAdapter(
-            child: widget.headerBuilder!(),
+      return Stack(
+        children: [
+          CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              // 头部内容
+              SliverToBoxAdapter(
+                child: widget.headerBuilder!(),
+              ),
+              
+              // 歌曲列表
+              SliverList.builder(
+                itemCount: _filteredTracks.length,
+                itemBuilder: (context, index) {
+                  final track = _filteredTracks[index];
+                  final originalIndex = widget.tracks.indexOf(track);
+                  return SizedBox(
+                    height: widget.itemHeight,
+                    child: _buildTrackItem(track, originalIndex, index),
+                  );
+                },
+              ),
+            ],
           ),
-          
-          // 歌曲列表
-          SliverList.builder(
-            itemCount: _filteredTracks.length,
-            itemBuilder: (context, index) {
-              final track = _filteredTracks[index];
-              final originalIndex = widget.tracks.indexOf(track);
-              return SizedBox(
-                height: widget.itemHeight,
-                child: _buildTrackItem(track, originalIndex, index),
-              );
-            },
-          ),
+          if (widget.enableSearch && _isSearchVisible) _buildFloatingSearchBar(),
         ],
       );
     }
 
     // 没有头部内容时使用普通ListView
-    return ListView.builder(
-      controller: _scrollController,
-      itemCount: _filteredTracks.length,
-      itemExtent: widget.itemHeight,
-      itemBuilder: (context, index) {
-        final track = _filteredTracks[index];
-        final originalIndex = widget.tracks.indexOf(track);
-        return _buildTrackItem(track, originalIndex, index);
-      },
+    return Stack(
+      children: [
+        ListView.builder(
+          controller: _scrollController,
+          itemCount: _filteredTracks.length,
+          itemExtent: widget.itemHeight,
+          itemBuilder: (context, index) {
+            final track = _filteredTracks[index];
+            final originalIndex = widget.tracks.indexOf(track);
+            return _buildTrackItem(track, originalIndex, index);
+          },
+        ),
+        if (widget.enableSearch && _isSearchVisible) _buildFloatingSearchBar(),
+      ],
     );
   }
 
   /// 构建空状态
   Widget _buildEmptyState() {
+    final hasSearchResults = _searchController.text.isNotEmpty && _filteredTracks.isEmpty;
+    
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.music_note,
+            hasSearchResults ? Icons.search_off : Icons.music_note,
             size: 64,
             color: Theme.of(context).colorScheme.outline,
           ),
           const SizedBox(height: 16),
           Text(
-            '暂无歌曲',
+            hasSearchResults ? '未找到相关歌曲' : '暂无歌曲',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: Theme.of(context).colorScheme.outline,
                 ),
           ),
+          if (hasSearchResults) ...[
+            const SizedBox(height: 8),
+            Text(
+              '试试其他关键词',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  /// 构建浮动搜索框
+  Widget _buildFloatingSearchBar() {
+    return Positioned(
+      top: 110, // 距离顶部80像素
+      left: 16,
+      right: 16,
+      child: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(28),
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+            ),
+          ),
+          child: TextField(
+            controller: _searchController,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: widget.searchHint,
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                      },
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            ),
+            onChanged: (value) {
+              setState(() {}); // 触发重建以更新suffixIcon
+            },
+          ),
+        ),
       ),
     );
   }
@@ -181,12 +311,12 @@ class _VirtualSongListState extends State<VirtualSongList> {
         }
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        padding: const EdgeInsets.only(left: 8.0, right: 16.0, top: 8.0, bottom: 8.0),
         child: Row(
           children: [
             // 序号或播放状态
             SizedBox(
-              width: 30,
+              width: 34,
               child: widget.showIndex
                   ? isCurrentPlaying
                       ? Icon(
@@ -326,6 +456,21 @@ class VirtualSongListController {
   /// 定位到指定歌曲
   void scrollToTrack(int trackId) {
     _state?.scrollToTrack(trackId);
+  }
+
+  /// 切换搜索框显示状态
+  void toggleSearch() {
+    _state?._toggleSearch();
+  }
+
+  /// 显示搜索框
+  void showSearch() {
+    _state?._showSearch();
+  }
+
+  /// 隐藏搜索框
+  void hideSearch() {
+    _state?._hideSearch();
   }
 }
 
