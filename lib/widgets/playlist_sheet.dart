@@ -127,7 +127,7 @@ class PlaylistSheet extends StatelessWidget {
               height: 42,
               child: track.album.picUrl.isNotEmpty
                   ? Image.network(
-                      track.album.picUrl,
+                      '${track.album.picUrl}?param=100y100',
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return Container(

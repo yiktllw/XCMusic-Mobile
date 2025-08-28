@@ -144,7 +144,7 @@ class _PlayerPageState extends State<PlayerPage>
             ),
             child: ClipOval(
               child: Image.network(
-                track.album.picUrl,
+                '${track.album.picUrl}?param=500y500',
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(

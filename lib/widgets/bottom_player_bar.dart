@@ -69,7 +69,7 @@ class BottomPlayerBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         child: track != null 
             ? Image.network(
-                track.album.picUrl,
+                '${track.album.picUrl}?param=100y100',
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
@@ -328,7 +328,7 @@ class PlaylistPanel extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: Image.network(
-                track.album.picUrl,
+                '${track.album.picUrl}?param=100y100',
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(

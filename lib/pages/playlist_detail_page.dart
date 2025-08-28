@@ -464,7 +464,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
-                    track.album.picUrl,
+                    '${track.album.picUrl}?param=100y100',
                     width: 60,
                     height: 60,
                     fit: BoxFit.cover,

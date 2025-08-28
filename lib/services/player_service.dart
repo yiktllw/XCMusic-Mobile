@@ -77,7 +77,6 @@ class PlayerService extends ChangeNotifier {
           break;
         case PlayerState.completed:
           _playerState = PlaybackState.stopped;
-          _onPlayCompleted();
           break;
         case PlayerState.disposed:
           _playerState = PlaybackState.stopped;
@@ -86,17 +85,32 @@ class PlayerService extends ChangeNotifier {
       notifyListeners();
     });
 
-    // 监听播放进度
-    _audioPlayer.onPositionChanged.listen((position) {
-      _position = position;
-      notifyListeners();
-      _savePlayerStateIfNeeded();
+    // 监听播放完成（只在这里监听一次）
+    _audioPlayer.onPlayerComplete.listen((_) {
+      AppLogger.info('AudioPlayer 播放完成事件触发');
+      _onTrackCompleted();
     });
 
     // 监听播放时长
     _audioPlayer.onDurationChanged.listen((duration) {
       _duration = duration;
       notifyListeners();
+    });
+
+    // 监听播放进度
+    _audioPlayer.onPositionChanged.listen((position) {
+      // 确保播放位置不超过总时长
+      _position = Duration(
+        milliseconds: position.inMilliseconds.clamp(0, _duration.inMilliseconds)
+      );
+      notifyListeners();
+      
+      // 每10秒保存一次状态，避免太频繁
+      if (_position.inSeconds > 0 && _position.inSeconds % 10 == 0) {
+        _saveState().catchError((e) {
+          AppLogger.error('保存播放状态失败', e);
+        });
+      }
     });
   }
 
@@ -131,59 +145,6 @@ class PlayerService extends ChangeNotifier {
     }
   }
 
-  /// 播放完成回调
-  void _onPlayCompleted() {
-    // 根据播放模式决定下一步操作
-    switch (_playMode) {
-      case PlayMode.listLoop:
-        _playNext();
-        break;
-      case PlayMode.singleLoop:
-        _playCurrent();
-        break;
-      case PlayMode.shuffle:
-        _playRandomNext();
-        break;
-    }
-  }
-
-  /// 保存播放器状态（避免频繁保存）
-  void _savePlayerStateIfNeeded() {
-    final now = DateTime.now();
-    if (_lastSaveTime == null || now.difference(_lastSaveTime!).inSeconds >= 5) {
-      _lastSaveTime = now;
-      _saveState();
-    }
-  }
-
-  /// 播放下一首
-  void _playNext() {
-    if (_playlist.isEmpty) return;
-    
-    final nextIndex = (_currentIndex + 1) % _playlist.length;
-    playTrackAt(nextIndex);
-  }
-
-  /// 播放当前歌曲
-  void _playCurrent() {
-    if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
-      playTrackAt(_currentIndex);
-    }
-  }
-
-  /// 随机播放下一首
-  void _playRandomNext() {
-    if (_playlist.isEmpty) return;
-    
-    final random = math.Random();
-    int nextIndex;
-    do {
-      nextIndex = random.nextInt(_playlist.length);
-    } while (nextIndex == _currentIndex && _playlist.length > 1);
-    
-    playTrackAt(nextIndex);
-  }
-
   // Getters
   PlaybackState get playerState => _playerState;
   PlayMode get playMode => _playMode;
@@ -203,52 +164,6 @@ class PlayerService extends ChangeNotifier {
   Future<void> initialize() async {
     // 加载保存的播放状态
     await _loadSavedState();
-    
-    // 监听播放状态
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      switch (state) {
-        case PlayerState.playing:
-          _playerState = PlaybackState.playing;
-          break;
-        case PlayerState.paused:
-          _playerState = PlaybackState.paused;
-          break;
-        case PlayerState.stopped:
-          _playerState = PlaybackState.stopped;
-          break;
-        case PlayerState.completed:
-          _onTrackCompleted();
-          break;
-        case PlayerState.disposed:
-          _playerState = PlaybackState.stopped;
-          break;
-      }
-      notifyListeners();
-    });
-
-    // 监听播放完成
-    _audioPlayer.onPlayerComplete.listen((_) {
-      _onTrackCompleted();
-    });
-
-    // 监听播放进度
-    _audioPlayer.onDurationChanged.listen((duration) {
-      _duration = duration;
-      notifyListeners();
-    });
-
-    _audioPlayer.onPositionChanged.listen((position) {
-      // 确保播放位置不超过总时长
-      _position = Duration(
-        milliseconds: position.inMilliseconds.clamp(0, _duration.inMilliseconds)
-      );
-      notifyListeners();
-      
-      // 每10秒保存一次状态，避免太频繁
-      if (_position.inSeconds > 0 && _position.inSeconds % 10 == 0) {
-        _saveState();
-      }
-    });
   }
 
   /// 获取存储文件路径
@@ -441,14 +356,20 @@ class PlayerService extends ChangeNotifier {
   void addTrack(Track track) {
     _playlist.add(track);
     notifyListeners();
-    _saveState(); // 保存状态
+    // 异步保存状态，不阻塞UI
+    _saveState().catchError((e) {
+      AppLogger.error('保存播放状态失败', e);
+    });
   }
 
   /// 添加多首歌曲到播放列表
   void addTracks(List<Track> tracks) {
     _playlist.addAll(tracks);
     notifyListeners();
-    _saveState(); // 保存状态
+    // 异步保存状态，不阻塞UI
+    _saveState().catchError((e) {
+      AppLogger.error('保存播放状态失败', e);
+    });
   }
 
   /// 从播放列表移除歌曲
@@ -525,7 +446,10 @@ class PlayerService extends ChangeNotifier {
       await _playCurrentTrack();
     }
     notifyListeners();
-    _saveState(); // 保存状态
+    // 异步保存状态，不阻塞UI
+    _saveState().catchError((e) {
+      AppLogger.error('保存播放状态失败', e);
+    });
   }
 
   /// 播放当前歌曲
@@ -631,27 +555,38 @@ class PlayerService extends ChangeNotifier {
 
   /// 下一首
   Future<void> next() async {
+    AppLogger.info('next() 调用开始，当前播放模式: $_playMode, 当前索引: $_currentIndex, 播放列表长度: ${_playlist.length}');
+    
     if (_playMode == PlayMode.shuffle) {
       // 随机播放
       if (_playlist.length > 1) {
+        final random = math.Random();
         int newIndex;
         do {
-          newIndex = (DateTime.now().millisecondsSinceEpoch % _playlist.length);
+          newIndex = random.nextInt(_playlist.length);
         } while (newIndex == _currentIndex && _playlist.length > 1);
+        AppLogger.info('随机播放：从索引 $_currentIndex 切换到 $newIndex');
         _currentIndex = newIndex;
       }
     } else {
       // 顺序播放
+      final oldIndex = _currentIndex;
       if (_currentIndex < _playlist.length - 1) {
         _currentIndex++;
+        AppLogger.info('顺序播放：从索引 $oldIndex 递增到 $_currentIndex');
       } else if (_playMode == PlayMode.listLoop) {
         _currentIndex = 0;
+        AppLogger.info('列表循环：从索引 $oldIndex 重置到 0');
       } else {
+        AppLogger.info('列表结束，不切换歌曲');
         return; // 列表结束
       }
     }
     await _playCurrentTrack();
-    _saveState(); // 保存状态
+    // 异步保存状态，不阻塞UI
+    _saveState().catchError((e) {
+      AppLogger.error('保存播放状态失败', e);
+    });
   }
 
   /// 上一首
@@ -669,7 +604,10 @@ class PlayerService extends ChangeNotifier {
         return;
       }
       await _playCurrentTrack();
-      _saveState(); // 保存状态
+      // 异步保存状态，不阻塞UI
+      _saveState().catchError((e) {
+        AppLogger.error('保存播放状态失败', e);
+      });
     }
   }
 
@@ -692,17 +630,28 @@ class PlayerService extends ChangeNotifier {
   void setPlayMode(PlayMode mode) {
     _playMode = mode;
     notifyListeners();
-    _saveState(); // 保存状态
+    // 异步保存状态，不阻塞UI
+    _saveState().catchError((e) {
+      AppLogger.error('保存播放模式失败', e);
+    });
   }
 
   /// 歌曲播放完成回调
   void _onTrackCompleted() {
+    AppLogger.info('歌曲播放完成，当前播放模式: $_playMode, 当前索引: $_currentIndex');
+    
     if (_playMode == PlayMode.singleLoop) {
-      // 单曲循环
-      _playCurrentTrack();
+      // 单曲循环 - 异步调用不阻塞
+      AppLogger.info('执行单曲循环，保持索引: $_currentIndex');
+      _playCurrentTrack().catchError((e) {
+        AppLogger.error('单曲循环播放失败', e);
+      });
     } else {
-      // 播放下一首
-      next();
+      // 播放下一首 - 异步调用不阻塞
+      AppLogger.info('执行播放下一首，当前索引: $_currentIndex');
+      next().catchError((e) {
+        AppLogger.error('播放下一首失败', e);
+      });
     }
   }
 

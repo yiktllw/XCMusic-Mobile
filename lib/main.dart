@@ -309,8 +309,178 @@ class PageWrapper extends StatelessWidget {
 }
 
 /// 浮动播放控件
-class FloatingPlayerBar extends StatelessWidget {
+class FloatingPlayerBar extends StatefulWidget {
   const FloatingPlayerBar({super.key});
+
+  @override
+  State<FloatingPlayerBar> createState() => _FloatingPlayerBarState();
+}
+
+class _FloatingPlayerBarState extends State<FloatingPlayerBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _slideAnimation;
+  double _dragOffset = 0.0;
+  double _currentOffset = 0.0; // 当前实际偏移值，用于跟手滑动
+  Track? _targetTrack; // 目标歌曲
+  bool _isNext = true; // 滑动方向
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _slideAnimation = Tween<double>(
+      begin: 0.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutQuart,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _animateSwipe(bool isNext) {
+    final targetValue = isNext ? -1.0 : 1.0;
+    _slideAnimation = Tween<double>(
+      begin: _currentOffset,
+      end: targetValue,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutQuart,
+    ));
+
+    _animationController.reset();
+    _animationController.forward().then((_) {
+      // 动画完成后重置
+      _currentOffset = 0.0;
+      _targetTrack = null;
+    });
+  }
+
+  void _resetAnimation() {
+    _slideAnimation = Tween<double>(
+      begin: _currentOffset,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutQuart,
+    ));
+    
+    _animationController.reset();
+    _animationController.forward().then((_) {
+      _currentOffset = 0.0;
+      _targetTrack = null;
+    });
+  }
+
+  Track? _getTargetTrack(PlayerService playerService, bool isNext) {
+    if (isNext && playerService.hasNext) {
+      final nextIndex = playerService.currentIndex + 1;
+      if (nextIndex < playerService.playlist.length) {
+        return playerService.playlist[nextIndex];
+      }
+    } else if (!isNext && playerService.hasPrevious) {
+      final prevIndex = playerService.currentIndex - 1;
+      if (prevIndex >= 0) {
+        return playerService.playlist[prevIndex];
+      }
+    }
+    return null;
+  }
+
+  Widget _buildTrackInfo(BuildContext context, Track? track, bool isTarget) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: !isTarget && track != null ? () => _openPlayerPage(context) : null,
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        padding: const EdgeInsets.fromLTRB(10, 4, 12, 4),
+        decoration: BoxDecoration(
+          color: isTarget 
+              ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.8)
+              : Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(16),
+            bottomLeft: Radius.circular(16),
+          ),
+        ),
+        child: Row(
+          children: [
+            // 专辑封面
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: track?.album.picUrl.isNotEmpty == true
+                    ? Image.network(
+                        '${track!.album.picUrl}?param=100y100',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.music_note,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              size: 20,
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        child: Icon(
+                          Icons.music_note,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: 20,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // 歌曲信息
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track?.name ?? '暂无播放',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                          color: isTarget 
+                              ? Theme.of(context).colorScheme.onSurfaceVariant
+                              : null,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (track?.artists.isNotEmpty == true)
+                    Text(
+                      track!.artists.map((artist) => artist.name).join(', '),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _openPlayerPage(BuildContext context) {
     showModalBottomSheet(
@@ -325,8 +495,8 @@ class FloatingPlayerBar extends StatelessWidget {
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
             ),
           ),
           child: const PlayerPage(),
@@ -344,8 +514,8 @@ class FloatingPlayerBar extends StatelessWidget {
         // 如果没有当前播放的歌曲，也显示播放控件但处于禁用状态
 
         return Container(
-          height: 66, // 增大高度以适应更大的图片
-          margin: const EdgeInsets.only(top: 20), // 增大上边距来下移控件
+          height: 60, // 增大高度以适应更大的图片
+          // margin: const EdgeInsets.only(bottom: 20), // 增大上边距来下移控件
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
@@ -362,121 +532,159 @@ class FloatingPlayerBar extends StatelessWidget {
             ],
           ),
           child: GestureDetector(
-            onHorizontalDragEnd: (details) {
-              // 左右滑动切换歌曲
-              if (details.primaryVelocity != null && currentTrack != null) {
-                if (details.primaryVelocity! > 100) {
-                  // 向右滑动，上一首
-                  if (playerService.hasPrevious) {
-                    playerService.playTrackAt(playerService.currentIndex - 1);
-                  }
-                } else if (details.primaryVelocity! < -100) {
-                  // 向左滑动，下一首
-                  if (playerService.hasNext) {
-                    playerService.playTrackAt(playerService.currentIndex + 1);
-                  }
-                }
-              }
+            onHorizontalDragStart: (details) {
+              _dragOffset = 0.0;
+              _currentOffset = 0.0;
+              _targetTrack = null;
             },
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: currentTrack != null ? () => _openPlayerPage(context) : null,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 12),
-                        // 专辑封面
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: SizedBox(
-                            width: 42,
-                            height: 42,
-                            child: currentTrack?.album.picUrl.isNotEmpty == true
-                                ? Image.network(
-                                    currentTrack!.album.picUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                        child: Icon(
-                                          Icons.music_note,
-                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                        ),
-                                      );
-                                    },
-                                  )
-                                : Container(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                    child: Icon(
-                                      Icons.music_note,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
+            onHorizontalDragUpdate: (details) {
+              // 实时更新滑动位置，完全跟手
+              setState(() {
+                _dragOffset += details.delta.dx;
+                final screenWidth = MediaQuery.of(context).size.width;
+                final maxOffset = screenWidth * 0.5; // 最大滑动距离
+                _currentOffset = (_dragOffset / maxOffset).clamp(-1.0, 1.0);
+                
+                // 确定滑动方向和目标歌曲
+                if (_currentOffset.abs() > 0.1) {
+                  _isNext = _currentOffset < 0;
+                  _targetTrack = _getTargetTrack(playerService, _isNext);
+                } else {
+                  _targetTrack = null;
+                }
+              });
+            },
+            onHorizontalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              final slideThreshold = 0.3; // 滑动阈值
+              
+              // 检查滑动距离和速度
+              bool shouldSwitch = _currentOffset.abs() > slideThreshold || velocity.abs() > 500;
+              
+              if (shouldSwitch && currentTrack != null) {
+                bool isNext = _currentOffset < 0 || velocity < 0;
+                
+                if (isNext && playerService.hasNext) {
+                  // 向左滑动，下一首
+                  _animateSwipe(true);
+                  playerService.playTrackAt(playerService.currentIndex + 1);
+                } else if (!isNext && playerService.hasPrevious) {
+                  // 向右滑动，上一首
+                  _animateSwipe(false);
+                  playerService.playTrackAt(playerService.currentIndex - 1);
+                } else {
+                  // 没有下一首/上一首，回弹动画
+                  _resetAnimation();
+                }
+              } else {
+                // 滑动距离不够，回弹到原位
+                _resetAnimation();
+              }
+              
+              // 重置拖拽偏移
+              _dragOffset = 0.0;
+            },
+            child: AnimatedBuilder(
+              animation: _slideAnimation,
+              builder: (context, child) {
+                // 在动画期间使用动画值，在拖拽期间使用当前偏移值
+                final displayOffset = _animationController.isAnimating ? _slideAnimation.value : _currentOffset;
+                
+                return Stack(
+                  children: [
+                    // 固定的播放控件容器
+                    Positioned(
+                      right: 4, // 进一步减少右边距
+                      top: 8,
+                      bottom: 8,
+                      width: 60, // 进一步减少宽度
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(10),
+                            bottomRight: Radius.circular(10),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        // 歌曲信息
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                currentTrack?.name ?? '暂无播放',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 13,
-                                    ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if (currentTrack?.artists.isNotEmpty == true)
-                                Text(
-                                  currentTrack!.artists.map((artist) => artist.name).join(', '),
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                        fontSize: 11,
-                                      ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                            ],
-                          ),
-                        ),
-                        // 播放控件
-                        Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: Icon(
-                                playerService.isPlaying ? Icons.pause : Icons.play_arrow,
-                                color: currentTrack != null 
-                                    ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.onSurfaceVariant,
-                                size: 22,
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: currentTrack != null ? () => playerService.playPause() : null,
+                                child: SizedBox(
+                                  width: 28, // 固定宽度，无最小宽度
+                                  height: 28, // 固定高度
+                                  child: Icon(
+                                    playerService.isPlaying ? Icons.pause : Icons.play_arrow,
+                                    color: currentTrack != null 
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                                    size: 22,
+                                  ),
+                                ),
                               ),
-                              onPressed: currentTrack != null ? () => playerService.playPause() : null,
-                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                              padding: const EdgeInsets.all(6),
                             ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.playlist_play,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                size: 20,
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () => _showPlaylist(context, playerService, currentTrack),
+                                child: SizedBox(
+                                  width: 28, // 固定宽度，无最小宽度
+                                  height: 28, // 固定高度
+                                  child: Icon(
+                                    Icons.playlist_play,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    size: 20,
+                                  ),
+                                ),
                               ),
-                              onPressed: () => _showPlaylist(context, playerService, currentTrack),
-                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                              padding: const EdgeInsets.all(6),
                             ),
                           ],
                         ),
-                        const SizedBox(width: 6),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    // 可滑动的歌曲信息容器
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      right: 64, // 调整为播放控件留出空间
+                      child: ClipRect(
+                        child: Stack(
+                          children: [
+                            // 当前歌曲
+                            Transform.translate(
+                              offset: Offset(displayOffset * 200, 0), // 减小滑动距离
+                              child: Opacity(
+                                opacity: 1.0 - (displayOffset.abs() * 0.3), // 滑动时透明度变化
+                                child: _buildTrackInfo(context, currentTrack, false),
+                              ),
+                            ),
+                            // 目标歌曲（从右侧填充）
+                            if (_targetTrack != null && displayOffset.abs() > 0.1)
+                              Transform.translate(
+                                offset: Offset(
+                                  displayOffset > 0 
+                                    ? (displayOffset - 1) * 200  // 从左侧进入
+                                    : (displayOffset + 1) * 200, // 从右侧进入
+                                  0
+                                ),
+                                child: Opacity(
+                                  opacity: displayOffset.abs() * 0.8, // 目标歌曲淡入效果
+                                  child: _buildTrackInfo(context, _targetTrack, true),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         );
