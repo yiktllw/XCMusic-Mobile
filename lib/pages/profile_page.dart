@@ -9,7 +9,6 @@ import '../utils/app_logger.dart';
 import '../utils/top_banner.dart';
 import 'qr_login_page.dart';
 import 'debug_page.dart';
-import '../widgets/common_drawer.dart';
 
 /// 个人资料页面
 class ProfilePage extends StatefulWidget {
@@ -558,9 +557,13 @@ class _ProfilePageState extends State<ProfilePage> {
         _buildListDetail(Icons.calendar_today, _formatSubTime(album.subTime)),
       ],
       onTap: () {
-        TopBanner.showInfo(
+        Navigator.pushNamed(
           context,
-          '点击了专辑: ${album.name}',
+          '/album_detail',
+          arguments: {
+            'albumId': album.id.toString(),
+            'albumName': album.name,
+          },
         );
       },
     );
@@ -731,7 +734,26 @@ class _ProfilePageState extends State<ProfilePage> {
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+            onPressed: () {
+              // 向上查找包含drawer的Scaffold的Element
+              Element? scaffoldElement;
+              context.visitAncestorElements((element) {
+                final widget = element.widget;
+                if (widget is Scaffold && widget.drawer != null) {
+                  scaffoldElement = element;
+                  return false; // 找到包含drawer的Scaffold，停止查找
+                }
+                return true; // 继续向上查找
+              });
+              
+              if (scaffoldElement != null) {
+                // 直接从找到的Element获取ScaffoldState
+                final scaffoldState = (scaffoldElement as StatefulElement).state as ScaffoldState;
+                scaffoldState.openDrawer();
+              } else {
+                debugPrint('未找到包含drawer的Scaffold');
+              }
+            },
             tooltip: '菜单',
           ),
         ),
@@ -750,8 +772,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
-      // 使用共用侧栏
-      drawer: const CommonDrawer(),
+      // drawer移除，现在在MainScaffold中
       body: SafeArea(
         child: CustomScrollView(
           // 添加物理效果优化

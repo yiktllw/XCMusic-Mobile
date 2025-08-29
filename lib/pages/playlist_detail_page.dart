@@ -301,7 +301,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
       height: _expandedHeight,
       decoration: BoxDecoration(
         image: DecorationImage(
-          image: NetworkImage(_playlist!.coverImgUrl),
+          image: NetworkImage('${_playlist!.coverImgUrl}?param=400y400'),
           fit: BoxFit.cover,
           colorFilter: ColorFilter.mode(
             Colors.black.withValues(alpha: 0.6),
@@ -335,7 +335,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
-                    _playlist!.coverImgUrl,
+                    '${_playlist!.coverImgUrl}?param=200y200',
                     width: 120,
                     height: 120,
                     fit: BoxFit.cover,
@@ -379,7 +379,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
                         children: [
                           ClipOval(
                             child: Image.network(
-                              _playlist!.creator.avatarUrl,
+                              '${_playlist!.creator.avatarUrl}?param=50y50',
                               width: 24,
                               height: 24,
                               fit: BoxFit.cover,

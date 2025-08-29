@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/playlist.dart';
 import '../services/player_service.dart';
+import '../config/song_list_layout.dart';
 
 /// 播放列表底部表单组件
 class PlaylistSheet extends StatelessWidget {
@@ -117,78 +118,136 @@ class PlaylistSheet extends StatelessWidget {
         final track = playerService.playlist[index];
         final isCurrentTrack = currentTrack != null && track.id == currentTrack!.id;
 
-        return ListTile(
-          dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: SizedBox(
-              width: 42,
-              height: 42,
-              child: track.album.picUrl.isNotEmpty
-                  ? Image.network(
-                      '${track.album.picUrl}?param=100y100',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: isCurrentTrack
-                              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
-                              : Theme.of(context).colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.music_note,
-                            color: isCurrentTrack
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        );
-                      },
+        return _buildPlaylistItem(context, track, index, isCurrentTrack, playerService);
+      },
+    );
+  }
+
+  /// 构建播放列表项
+  Widget _buildPlaylistItem(BuildContext context, Track track, int index, bool isCurrentTrack, PlayerService playerService) {
+    return InkWell(
+      onTap: () {
+        playerService.playTrackAt(index);
+      },
+      child: Padding(
+        padding: SongListLayoutConfig.itemPadding,
+        child: Row(
+          children: [
+            // 序号或播放状态
+            SizedBox(
+              width: SongListLayoutConfig.indexWidth,
+              child: isCurrentTrack
+                  ? Icon(
+                      Icons.volume_up,
+                      color: SongListStyleConfig.getPlayingIconColor(context),
+                      size: SongListLayoutConfig.playingIconSize,
                     )
-                  : Container(
-                      color: isCurrentTrack
-                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
-                          : Theme.of(context).colorScheme.surfaceContainerHighest,
-                      child: Icon(
-                        Icons.music_note,
-                        color: isCurrentTrack
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                  : Text(
+                      '${index + 1}',
+                      style: SongListStyleConfig.getIndexStyle(context),
+                      textAlign: TextAlign.center,
                     ),
             ),
-          ),
-          title: Text(
-            track.name,
-            style: TextStyle(
-              color: isCurrentTrack
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-              fontWeight: isCurrentTrack ? FontWeight.w500 : null,
-              fontSize: 14,
+            
+            const SizedBox(width: SongListLayoutConfig.spacingMedium),
+            
+            // 专辑封面
+            ClipRRect(
+              borderRadius: BorderRadius.circular(SongListLayoutConfig.albumCoverRadius),
+              child: SizedBox(
+                width: SongListLayoutConfig.albumCoverSize,
+                height: SongListLayoutConfig.albumCoverSize,
+                child: track.album.picUrl.isNotEmpty
+                    ? Image.network(
+                        "${track.album.picUrl}${SongListLayoutConfig.albumCoverParam}",
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: SongListStyleConfig.getErrorBackgroundColor(context),
+                            child: Icon(
+                              Icons.music_note,
+                              color: SongListStyleConfig.getErrorIconColor(context),
+                              size: SongListLayoutConfig.errorIconSize,
+                            ),
+                          );
+                        },
+                      )
+                    : Container(
+                        color: SongListStyleConfig.getErrorBackgroundColor(context),
+                        child: Icon(
+                          Icons.music_note,
+                          color: SongListStyleConfig.getErrorIconColor(context),
+                          size: SongListLayoutConfig.errorIconSize,
+                        ),
+                      ),
+              ),
             ),
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: track.artists.isNotEmpty
-              ? Text(
-                  track.artists.map((artist) => artist.name).join(', '),
-                  style: const TextStyle(fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
-                )
-              : null,
-          trailing: IconButton(
-            icon: const Icon(Icons.close, size: 18),
-            onPressed: () {
-              playerService.removeFromPlaylist(index);
-            },
-            tooltip: '从播放列表中移除',
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            padding: const EdgeInsets.all(6),
-          ),
-          onTap: () {
-            playerService.playTrackAt(index);
-            Navigator.pop(context);
-          },
-        );
-      },
+            
+            const SizedBox(width: SongListLayoutConfig.spacingMedium),
+            
+            // 歌曲信息
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // 歌曲名称和VIP标识
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          track.name,
+                          style: SongListStyleConfig.getSongNameStyle(
+                            context,
+                            isCurrentPlaying: isCurrentTrack,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (track.isVip) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: SongListLayoutConfig.vipPadding,
+                          decoration: BoxDecoration(
+                            color: SongListStyleConfig.vipBackgroundColor,
+                            borderRadius: BorderRadius.circular(SongListLayoutConfig.vipRadius),
+                          ),
+                          child: const Text(
+                            'VIP',
+                            style: SongListStyleConfig.vipTextStyle,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  
+                  const SizedBox(height: SongListLayoutConfig.spacingSmall),
+                  
+                  // 艺术家
+                  if (track.artists.isNotEmpty)
+                    Text(
+                      track.artists.map((artist) => artist.name).join(', '),
+                      style: SongListStyleConfig.getArtistAlbumStyle(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            
+            // 移除按钮
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              color: SongListStyleConfig.getMoreIconColor(context),
+              onPressed: () {
+                playerService.removeFromPlaylist(index);
+              },
+              tooltip: '从播放列表移除',
+            ),
+          ],
+        ),
+      ),
     );
   }
 

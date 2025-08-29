@@ -10,6 +10,7 @@ import 'pages/home_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/player_page.dart';
 import 'pages/playlist_detail_page.dart';
+import 'pages/album_detail_page.dart';
 import 'widgets/bottom_player_bar.dart';
 import 'widgets/common_drawer.dart';
 import 'widgets/playlist_sheet.dart';
@@ -123,6 +124,13 @@ class _XCMusicAppState extends State<XCMusicApp> {
                     playlistName: args?['playlistName'],
                   );
                   break;
+                case '/album_detail':
+                  final args = settings.arguments as Map<String, dynamic>?;
+                  page = AlbumDetailPageWrapper(
+                    albumId: args?['albumId'] ?? '',
+                    albumName: args?['albumName'],
+                  );
+                  break;
                 default:
                   return null;
               }
@@ -142,6 +150,7 @@ class MainScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const CommonDrawer(), // 将Drawer移到最外层
       body: Stack(
         children: [
           const HomePage(title: 'XCMusic'),
@@ -202,7 +211,64 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // 其他页面保持原有的AppBar
+    // 主页也使用全屏显示，确保浮动播放控件在侧栏下方
+    if (_currentIndex == 0) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+          title: const Text('XCMusic'),
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () {
+                // 向上查找包含drawer的Scaffold的Element
+                Element? scaffoldElement;
+                context.visitAncestorElements((element) {
+                  final widget = element.widget;
+                  if (widget is Scaffold && widget.drawer != null) {
+                    scaffoldElement = element;
+                    return false; // 找到包含drawer的Scaffold，停止查找
+                  }
+                  return true; // 继续向上查找
+                });
+                
+                if (scaffoldElement != null) {
+                  // 直接从找到的Element获取ScaffoldState
+                  final scaffoldState = (scaffoldElement as StatefulElement).state as ScaffoldState;
+                  scaffoldState.openDrawer();
+                } else {
+                  debugPrint('未找到包含drawer的Scaffold');
+                }
+              },
+              tooltip: '菜单',
+            ),
+          ),
+          actions: [
+            // 调试按钮
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const DebugPage()),
+                );
+              },
+              tooltip: '调试信息',
+            ),
+          ],
+        ),
+        body: _pages[_currentIndex],
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: _onTabTapped,
+          items: _bottomNavItems,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: Theme.of(context).colorScheme.primary,
+          unselectedItemColor: Colors.grey,
+        ),
+      );
+    }
+
+    // 其他页面保持原有的AppBar (这部分代码现在不会被执行，但保留以防后续添加更多页面)
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -272,6 +338,39 @@ class PlaylistDetailPageWrapper extends StatelessWidget {
           PlaylistDetailPage(
             playlistId: playlistId,
             playlistName: playlistName,
+          ),
+          // 浮动播放控件
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 20,
+            child: const FloatingPlayerBar(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 专辑详情页面包装器
+class AlbumDetailPageWrapper extends StatelessWidget {
+  final String albumId;
+  final String? albumName;
+
+  const AlbumDetailPageWrapper({
+    super.key,
+    required this.albumId,
+    this.albumName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          AlbumDetailPage(
+            albumId: albumId,
+            albumName: albumName,
           ),
           // 浮动播放控件
           Positioned(
@@ -525,9 +624,9 @@ class _FloatingPlayerBarState extends State<FloatingPlayerBar>
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.08), // 降低阴影强度
+                blurRadius: 8, // 减小模糊半径
+                offset: const Offset(0, 2), // 减小偏移
               ),
             ],
           ),

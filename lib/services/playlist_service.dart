@@ -156,4 +156,102 @@ class PlaylistService {
       throw Exception('获取歌曲详情失败: $e');
     }
   }
+
+  /// 获取推荐歌单
+  static Future<List<RecommendedPlaylist>> getRecommendedPlaylists() async {
+    await _ensureInitialized();
+
+    try {
+      final response = await _api.api.recommendResource(
+        cookie: GlobalConfig().getUserCookie(),
+        timestamp: DateTime.now().millisecondsSinceEpoch.toString(),
+      );
+
+      // 检查响应状态
+      final body = response['body'] as Map<String, dynamic>?;
+      if (body == null) {
+        throw Exception('获取推荐歌单失败: 响应为空');
+      }
+      
+      if (body['code'] != 200) {
+        final message = body['message'] ?? body['msg'] ?? '未知错误';
+        throw Exception('获取推荐歌单失败: $message');
+      }
+
+      final List<dynamic> recommendList = body['recommend'] ?? [];
+      
+      final playlists = recommendList.map((item) {
+        return RecommendedPlaylist.fromJson(item);
+      }).toList();
+      
+      return playlists;
+    } catch (e) {
+      throw Exception('获取推荐歌单失败: $e');
+    }
+  }
+}
+
+/// 推荐歌单模型
+class RecommendedPlaylist {
+  final int id;
+  final String name;
+  final String picUrl;
+  final int playcount;
+  final int trackCount;
+  final String copywriter;
+  final PlaylistCreator creator;
+
+  RecommendedPlaylist({
+    required this.id,
+    required this.name,
+    required this.picUrl,
+    required this.playcount,
+    required this.trackCount,
+    required this.copywriter,
+    required this.creator,
+  });
+
+  factory RecommendedPlaylist.fromJson(Map<String, dynamic> json) {
+    return RecommendedPlaylist(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      picUrl: json['picUrl'] ?? '',
+      playcount: json['playcount'] ?? 0,
+      trackCount: json['trackCount'] ?? 0,
+      copywriter: json['copywriter'] ?? '',
+      creator: PlaylistCreator.fromJson(json['creator'] ?? {}),
+    );
+  }
+
+  /// 格式化播放次数
+  String get formattedPlaycount {
+    if (playcount < 10000) {
+      return playcount.toString();
+    } else if (playcount < 100000000) {
+      return '${(playcount / 10000).toStringAsFixed(1)}万';
+    } else {
+      return '${(playcount / 100000000).toStringAsFixed(1)}亿';
+    }
+  }
+}
+
+/// 歌单创建者模型
+class PlaylistCreator {
+  final int userId;
+  final String nickname;
+  final String avatarUrl;
+
+  PlaylistCreator({
+    required this.userId,
+    required this.nickname,
+    required this.avatarUrl,
+  });
+
+  factory PlaylistCreator.fromJson(Map<String, dynamic> json) {
+    return PlaylistCreator(
+      userId: json['userId'] ?? 0,
+      nickname: json['nickname'] ?? '',
+      avatarUrl: json['avatarUrl'] ?? '',
+    );
+  }
 }

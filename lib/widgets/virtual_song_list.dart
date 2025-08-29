@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/playlist.dart';
 import '../services/player_service.dart';
+import '../config/song_list_layout.dart';
 
 /// 虚拟滚动歌曲列表组件
 class VirtualSongList extends StatefulWidget {
@@ -46,7 +47,7 @@ class VirtualSongList extends StatefulWidget {
     this.onMoreTap,
     this.currentPlayingId,
     this.showIndex = true,
-    this.itemHeight = 72.0,
+    this.itemHeight = SongListLayoutConfig.itemHeight,
     this.enableSearch = true,
     this.searchHint = '搜索歌曲、歌手、专辑',
     this.headerBuilder,
@@ -191,6 +192,11 @@ class _VirtualSongListState extends State<VirtualSongList> {
                   );
                 },
               ),
+              
+              // 底部空白
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 100),
+              ),
             ],
           ),
           if (widget.enableSearch && _isSearchVisible) _buildFloatingSearchBar(),
@@ -203,12 +209,19 @@ class _VirtualSongListState extends State<VirtualSongList> {
       children: [
         ListView.builder(
           controller: _scrollController,
-          itemCount: _filteredTracks.length,
-          itemExtent: widget.itemHeight,
+          itemCount: _filteredTracks.length + 1, // 增加一个用于底部空白
           itemBuilder: (context, index) {
+            // 如果是最后一个项目，返回底部空白
+            if (index == _filteredTracks.length) {
+              return const SizedBox(height: 80);
+            }
+            
             final track = _filteredTracks[index];
             final originalIndex = widget.tracks.indexOf(track);
-            return _buildTrackItem(track, originalIndex, index);
+            return SizedBox(
+              height: widget.itemHeight,
+              child: _buildTrackItem(track, originalIndex, index),
+            );
           },
         ),
         if (widget.enableSearch && _isSearchVisible) _buildFloatingSearchBar(),
@@ -297,7 +310,6 @@ class _VirtualSongListState extends State<VirtualSongList> {
   /// 构建歌曲项
   Widget _buildTrackItem(Track track, int originalIndex, int displayIndex) {
     final isCurrentPlaying = track.id == widget.currentPlayingId;
-    final theme = Theme.of(context);
     
     return InkWell(
       onTap: () {
@@ -311,55 +323,53 @@ class _VirtualSongListState extends State<VirtualSongList> {
         }
       },
       child: Padding(
-        padding: const EdgeInsets.only(left: 8.0, right: 16.0, top: 8.0, bottom: 8.0),
+        padding: SongListLayoutConfig.itemPadding,
         child: Row(
           children: [
             // 序号或播放状态
             SizedBox(
-              width: 34,
+              width: SongListLayoutConfig.indexWidth,
               child: widget.showIndex
                   ? isCurrentPlaying
                       ? Icon(
                           Icons.volume_up,
-                          color: theme.colorScheme.primary,
-                          size: 20,
+                          color: SongListStyleConfig.getPlayingIconColor(context),
+                          size: SongListLayoutConfig.playingIconSize,
                         )
                       : Text(
                           '${originalIndex + 1}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface,
-                          ),
+                          style: SongListStyleConfig.getIndexStyle(context),
                           textAlign: TextAlign.center,
                         )
                   : const SizedBox(),
             ),
             
-            const SizedBox(width: 12),
+            const SizedBox(width: SongListLayoutConfig.spacingMedium),
             
             // 歌曲封面
             ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(SongListLayoutConfig.albumCoverRadius),
               child: Image.network(
-                "${track.album.picUrl}?param=100y100",
-                width: 48,
-                height: 48,
+                "${track.album.picUrl}${SongListLayoutConfig.albumCoverParam}",
+                width: SongListLayoutConfig.albumCoverSize,
+                height: SongListLayoutConfig.albumCoverSize,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    width: 48,
-                    height: 48,
-                    color: theme.colorScheme.surfaceContainerHighest,
+                    width: SongListLayoutConfig.albumCoverSize,
+                    height: SongListLayoutConfig.albumCoverSize,
+                    color: SongListStyleConfig.getErrorBackgroundColor(context),
                     child: Icon(
                       Icons.music_note,
-                      color: theme.colorScheme.outline,
-                      size: 24,
+                      color: SongListStyleConfig.getErrorIconColor(context),
+                      size: SongListLayoutConfig.errorIconSize,
                     ),
                   );
                 },
               ),
             ),
             
-            const SizedBox(width: 12),
+            const SizedBox(width: SongListLayoutConfig.spacingMedium),
             
             // 歌曲信息
             Expanded(
@@ -373,13 +383,9 @@ class _VirtualSongListState extends State<VirtualSongList> {
                       Expanded(
                         child: Text(
                           track.name,
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: isCurrentPlaying
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurface,
-                            fontWeight: isCurrentPlaying
-                                ? FontWeight.w600
-                                : FontWeight.normal,
+                          style: SongListStyleConfig.getSongNameStyle(
+                            context,
+                            isCurrentPlaying: isCurrentPlaying,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -389,35 +395,26 @@ class _VirtualSongListState extends State<VirtualSongList> {
                       if (track.isVip) ...[
                         const SizedBox(width: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
-                          ),
+                          padding: SongListLayoutConfig.vipPadding,
                           decoration: BoxDecoration(
-                            color: Colors.amber,
-                            borderRadius: BorderRadius.circular(2),
+                            color: SongListStyleConfig.vipBackgroundColor,
+                            borderRadius: BorderRadius.circular(SongListLayoutConfig.vipRadius),
                           ),
                           child: const Text(
                             'VIP',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: SongListStyleConfig.vipTextStyle,
                           ),
                         ),
                       ],
                     ],
                   ),
                   
-                  const SizedBox(height: 2),
+                  const SizedBox(height: SongListLayoutConfig.spacingSmall),
                   
                   // 艺术家和专辑
                   Text(
                     '${track.artistNames} • ${track.album.name}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: SongListStyleConfig.getArtistAlbumStyle(context),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -429,7 +426,7 @@ class _VirtualSongListState extends State<VirtualSongList> {
             IconButton(
               icon: Icon(
                 Icons.more_vert,
-                color: theme.colorScheme.outline,
+                color: SongListStyleConfig.getMoreIconColor(context),
               ),
               onPressed: () => widget.onMoreTap?.call(track, originalIndex),
               tooltip: '更多操作',
@@ -498,7 +495,7 @@ class VirtualSongListWithController extends StatefulWidget {
     this.onMoreTap,
     this.currentPlayingId,
     this.showIndex = true,
-    this.itemHeight = 72.0,
+    this.itemHeight = SongListLayoutConfig.itemHeight,
     this.enableSearch = true,
     this.searchHint = '搜索歌曲、歌手、专辑',
     this.headerBuilder,

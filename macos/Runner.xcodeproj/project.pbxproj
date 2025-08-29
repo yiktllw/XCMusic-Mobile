@@ -216,7 +216,7 @@
 				33CC11202044C79F0003C045 /* PBXTargetDependency */,
 			);
 			name = Runner;
-			productName = Runner;
+			productName = XCMusic;
 			productReference = 33CC10ED2044A3C60003C045 /* xcmusic_mobile.app */;
 			productType = "com.apple.product-type.application";
 		};
