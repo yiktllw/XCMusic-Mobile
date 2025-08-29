@@ -51,8 +51,11 @@ dependencies:
   # Shared preferences for settings storage
   shared_preferences: ^2.2.2
 
-  # Audio player for music playback
+  # Audio player for music playback with background support
   audioplayers: ^6.0.0
+  audio_service: ^0.18.15
+  just_audio: ^0.9.40
+  just_audio_background: ^0.0.1-beta.14
 
   # HTTP client for API requests
   http: ^1.2.0

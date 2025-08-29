@@ -5,7 +5,7 @@ import '../services/player_service.dart';
 import '../config/song_list_layout.dart';
 
 /// 播放列表底部表单组件
-class PlaylistSheet extends StatelessWidget {
+class PlaylistSheet extends StatefulWidget {
   final Track? currentTrack;
   final ScrollController? scrollController;
 
@@ -14,6 +14,23 @@ class PlaylistSheet extends StatelessWidget {
     this.currentTrack,
     this.scrollController,
   });
+
+  @override
+  State<PlaylistSheet> createState() => _PlaylistSheetState();
+
+  /// 显示播放列表底部表单
+  static void show(BuildContext context, Track? currentTrack) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => PlaylistSheet(currentTrack: currentTrack),
+    );
+  }
+}
+
+class _PlaylistSheetState extends State<PlaylistSheet> {
+  bool _hasScrolledToCurrentTrack = false;
 
   @override
   Widget build(BuildContext context) {
@@ -111,16 +128,51 @@ class PlaylistSheet extends StatelessWidget {
 
   /// 构建播放列表
   Widget _buildPlaylist(BuildContext context, PlayerService playerService, ScrollController scrollController) {
+    // 只在第一次构建时滚动到当前播放的歌曲
+    if (!_hasScrolledToCurrentTrack && 
+        playerService.currentIndex >= 0 && 
+        playerService.playlist.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToCurrentTrack(scrollController, playerService);
+        _hasScrolledToCurrentTrack = true;
+      });
+    }
+    
     return ListView.builder(
       controller: scrollController,
       itemCount: playerService.playlist.length,
       itemBuilder: (context, index) {
         final track = playerService.playlist[index];
-        final isCurrentTrack = currentTrack != null && track.id == currentTrack!.id;
+        final isCurrentTrack = playerService.currentIndex == index;
 
         return _buildPlaylistItem(context, track, index, isCurrentTrack, playerService);
       },
     );
+  }
+
+  /// 滚动到当前播放的歌曲（瞬时定位，无动画）
+  void _scrollToCurrentTrack(ScrollController scrollController, PlayerService playerService) {
+    if (playerService.currentIndex >= 0 && 
+        playerService.playlist.isNotEmpty && 
+        scrollController.hasClients) {
+      
+      final currentIndex = playerService.currentIndex;
+      final itemHeight = 72.0; // 播放列表项的高度
+      final targetOffset = currentIndex * itemHeight;
+      
+      // 获取视口信息
+      final maxScrollExtent = scrollController.position.maxScrollExtent;
+      final viewportHeight = scrollController.position.viewportDimension;
+      
+      // 计算居中位置
+      final centeredOffset = (targetOffset - viewportHeight / 2 + itemHeight / 2)
+          .clamp(0.0, maxScrollExtent);
+      
+      // 瞬时跳转到目标位置（无动画）
+      scrollController.jumpTo(centeredOffset);
+      
+      debugPrint('播放列表已定位到当前歌曲: ${playerService.currentIndex}');
+    }
   }
 
   /// 构建播放列表项
@@ -273,16 +325,6 @@ class PlaylistSheet extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  /// 显示播放列表底部表单
-  static void show(BuildContext context, Track? currentTrack) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => PlaylistSheet(currentTrack: currentTrack),
     );
   }
 }

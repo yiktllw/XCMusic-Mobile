@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:audio_service/audio_service.dart';
 import 'package:netease_cloud_music_api/netease_cloud_music_api.dart';
 import 'services/api_manager.dart';
 import 'services/player_service.dart';
@@ -25,6 +26,30 @@ void main() async {
 
   // 将应用日志系统接入到API库
   ApiLogManager.setLogger(AppLogger.createApiAdapter());
+
+  // 初始化 AudioService
+  try {
+    AppLogger.app('正在初始化音频服务...');
+    await AudioService.init(
+      builder: () => AudioPlayerHandler.instance,
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.xcmusic.audio',
+        androidNotificationChannelName: 'XCMusic Audio Service',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: true,
+        androidShowNotificationBadge: true,
+        androidNotificationIcon: 'mipmap/ic_launcher',
+        // 增加MediaBrowserService支持
+        androidBrowsableRootExtras: {
+          'android.service.media.extra.RECENT': true,
+          'android.service.media.extra.OFFLINE': true,
+        },
+      ),
+    );
+    AppLogger.app('音频服务初始化成功');
+  } catch (e) {
+    AppLogger.error('音频服务初始化失败', e);
+  }
 
   // 初始化全局配置管理器
   try {
@@ -59,8 +84,8 @@ class XCMusicApp extends StatefulWidget {
 }
 
 class _XCMusicAppState extends State<XCMusicApp> {
-  late final PlayerService _playerService;
-  late final ThemeService _themeService;
+  PlayerService? _playerService;
+  ThemeService? _themeService;
   bool _isInitialized = false;
 
   @override
@@ -70,18 +95,36 @@ class _XCMusicAppState extends State<XCMusicApp> {
   }
 
   Future<void> _initializeServices() async {
-    _playerService = PlayerService();
-    _themeService = ThemeService();
-    
-    // 等待主题服务初始化完成
-    await _themeService.initialize();
-    // 初始化播放器
-    _playerService.initialize();
-    
-    if (mounted) {
-      setState(() {
-        _isInitialized = true;
-      });
+    try {
+      _playerService = PlayerService();
+      _themeService = ThemeService();
+      
+      // 等待主题服务初始化完成（设置超时）
+      await _themeService!.initialize().timeout(
+        Duration(seconds: 5),
+        onTimeout: () {
+          AppLogger.warning('主题服务初始化超时，使用默认设置');
+        },
+      );
+      
+      // 初始化播放器（设置超时，避免网络问题导致卡住）
+      await _playerService!.initialize().timeout(
+        Duration(seconds: 10),
+        onTimeout: () {
+          AppLogger.warning('播放器初始化超时，跳过状态恢复');
+        },
+      );
+      
+      AppLogger.info('服务初始化完成');
+    } catch (e) {
+      AppLogger.error('服务初始化失败，使用默认配置: $e');
+    } finally {
+      // 无论如何都要设置为已初始化，让用户能进入应用
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
     }
   }
 
@@ -90,8 +133,58 @@ class _XCMusicAppState extends State<XCMusicApp> {
     if (!_isInitialized) {
       return MaterialApp(
         home: Scaffold(
+          backgroundColor: Colors.black,
           body: Center(
-            child: CircularProgressIndicator(),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo或应用图标
+                Icon(
+                  Icons.music_note,
+                  size: 80,
+                  color: Colors.white,
+                ),
+                SizedBox(height: 32),
+                // 加载指示器
+                CircularProgressIndicator(
+                  color: Colors.blue,
+                ),
+                SizedBox(height: 24),
+                // 加载文本
+                Text(
+                  '正在初始化应用...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '首次启动可能需要几秒钟',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+                SizedBox(height: 32),
+                // 跳过按钮（紧急情况下使用）
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isInitialized = true;
+                    });
+                  },
+                  child: Text(
+                    '跳过初始化',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -99,8 +192,8 @@ class _XCMusicAppState extends State<XCMusicApp> {
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(value: _playerService),
-        ChangeNotifierProvider.value(value: _themeService),
+        ChangeNotifierProvider.value(value: _playerService ?? PlayerService()),
+        ChangeNotifierProvider.value(value: _themeService ?? ThemeService()),
       ],
       child: Consumer<ThemeService>(
         builder: (context, themeService, child) {
