@@ -179,6 +179,28 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
+  /// 显示完整专辑简介
+  void _showFullDescription(String description) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('专辑简介'),
+        content: SingleChildScrollView(
+          child: Text(
+            description,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 构建专辑头部信息
   Widget _buildAlbumHeader() {
     if (_albumDetail == null) return const SizedBox.shrink();
@@ -201,7 +223,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.network(
-                  '${album['picUrl']}?param=120y120',
+                  '${album['picUrl']}?param=240y240',
                   width: 120,
                   height: 120,
                   fit: BoxFit.cover,
@@ -295,11 +317,25 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
-            Text(
-              '专辑简介',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  '专辑简介',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _showFullDescription(description.isNotEmpty ? description : briefDesc),
+                  child: Icon(
+                    Icons.expand_more,
+                    color: Theme.of(context).textTheme.titleMedium?.color,
+                    size: 24,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
