@@ -4,6 +4,7 @@ import '../models/playlist.dart';
 import '../services/playlist_service.dart';
 import '../services/player_service.dart';
 import '../widgets/virtual_song_list.dart';
+import '../widgets/song_detail_panel.dart';
 import '../utils/top_banner.dart';
 
 /// 歌单详情页面
@@ -180,11 +181,52 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
     }
   }
 
-  /// 更多操作处理
+  /// 更多操作点击处理
   void _onMoreTap(Track track, int index) {
-    showModalBottomSheet(
+    SongDetailPanel.show(
       context: context,
-      builder: (context) => _buildTrackBottomSheet(track),
+      track: track,
+      index: index,
+      onPlay: () => _onPlayTap(track, index),
+      onPlayNext: () {
+        // TODO: 实现添加到下一首播放
+        TopBanner.showInfo(
+          context,
+          '下一首播放功能开发中...',
+        );
+      },
+      onAlbumTap: () {
+        // 跳转到专辑页面
+        Navigator.pushNamed(
+          context,
+          '/album_detail',
+          arguments: {
+            'albumId': track.album.id.toString(),
+            'albumName': track.album.name,
+          },
+        );
+      },
+      onFavoriteTap: () {
+        // TODO: 实现收藏功能
+        TopBanner.showInfo(
+          context,
+          '收藏功能开发中...',
+        );
+      },
+      onDownloadTap: () {
+        // TODO: 实现下载功能
+        TopBanner.showInfo(
+          context,
+          '下载功能开发中...',
+        );
+      },
+      onShareTap: () {
+        // TODO: 实现分享功能
+        TopBanner.showInfo(
+          context,
+          '分享功能开发中...',
+        );
+      },
     );
   }
 
@@ -449,123 +491,6 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
   }
 
   /// 构建头部信息
-  /// 构建歌曲底部操作面板
-  Widget _buildTrackBottomSheet(Track track) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 歌曲信息
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    '${track.album.picUrl}?param=100y100',
-                    width: 60,
-                    height: 60,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 60,
-                        height: 60,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.music_note),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        track.name,
-                        style: Theme.of(context).textTheme.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        track.artistNames,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // 操作选项
-          const Divider(),
-          _buildBottomSheetItem(
-            icon: Icons.play_arrow,
-            title: '立即播放',
-            onTap: () {
-              Navigator.pop(context);
-              _onPlayTap(track, _tracks.indexOf(track));
-            },
-          ),
-          _buildBottomSheetItem(
-            icon: Icons.queue_music,
-            title: '下一首播放',
-            onTap: () {
-              Navigator.pop(context);
-              // TODO: 添加到播放队列
-            },
-          ),
-          _buildBottomSheetItem(
-            icon: Icons.favorite_border,
-            title: '收藏',
-            onTap: () {
-              Navigator.pop(context);
-              // TODO: 收藏歌曲
-            },
-          ),
-          _buildBottomSheetItem(
-            icon: Icons.download,
-            title: '下载',
-            onTap: () {
-              Navigator.pop(context);
-              // TODO: 下载歌曲
-            },
-          ),
-          _buildBottomSheetItem(
-            icon: Icons.share,
-            title: '分享',
-            onTap: () {
-              Navigator.pop(context);
-              // TODO: 分享歌曲
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建底部面板选项项
-  Widget _buildBottomSheetItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      onTap: onTap,
-    );
-  }
-
   /// 格式化播放次数
   String _formatPlayCount(int count) {
     if (count < 10000) {

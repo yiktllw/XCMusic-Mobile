@@ -4,6 +4,7 @@ import '../models/playlist.dart';
 import '../services/api_manager.dart';
 import '../services/player_service.dart';
 import '../widgets/mixed_virtual_song_list.dart';
+import '../widgets/song_detail_panel.dart';
 import '../utils/app_logger.dart';
 import '../utils/top_banner.dart';
 
@@ -389,6 +390,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                   items: _mixedItems,
                   onTrackTap: _playMixedTrack,
                   onPlayTap: _playMixedTrack,
+                  onMoreTap: _onMoreTap,
                   headerBuilder: () => Column(
                     children: [
                       _buildAlbumHeader(),
@@ -439,5 +441,50 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     height += 15; // 减少专辑内容标题高度
     
     return height;
+  }
+
+  /// 更多操作点击处理
+  void _onMoreTap(Track track, int index) {
+    SongDetailPanel.show(
+      context: context,
+      track: track,
+      index: index,
+      onPlay: () => _playMixedTrack(track, index),
+      onPlayNext: () {
+        // TODO: 实现添加到下一首播放
+        TopBanner.showInfo(
+          context,
+          '下一首播放功能开发中...',
+        );
+      },
+      onAlbumTap: () {
+        // 当前已经在专辑页面，显示提示
+        TopBanner.showInfo(
+          context,
+          '您已在专辑 "${track.album.name}" 页面',
+        );
+      },
+      onFavoriteTap: () {
+        // TODO: 实现收藏功能
+        TopBanner.showInfo(
+          context,
+          '收藏功能开发中...',
+        );
+      },
+      onDownloadTap: () {
+        // TODO: 实现下载功能
+        TopBanner.showInfo(
+          context,
+          '下载功能开发中...',
+        );
+      },
+      onShareTap: () {
+        // TODO: 实现分享功能
+        TopBanner.showInfo(
+          context,
+          '分享功能开发中...',
+        );
+      },
+    );
   }
 }
