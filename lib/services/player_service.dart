@@ -79,7 +79,7 @@ class PlayerService extends ChangeNotifier {
     ));
     
     // 监听播放状态变化
-    _audioPlayer.onPlayerStateChanged.listen((state) {
+    _audioPlayer.onPlayerStateChanged.listen((state) async {
       final oldState = _playerState;
       switch (state) {
         case PlayerState.playing:
@@ -101,7 +101,7 @@ class PlayerService extends ChangeNotifier {
       
       // 只有当播放状态真正改变时才强制更新 MediaSession
       if (oldState != _playerState) {
-        _forceUpdateMediaSession();
+        await _forceUpdateMediaSession();
         
         // 启动或停止定时器
         if (_playerState == PlaybackState.playing) {
@@ -149,10 +149,28 @@ class PlayerService extends ChangeNotifier {
   /// 启动 MediaSession 更新定时器
   void _startMediaSessionUpdateTimer() {
     _mediaSessionUpdateTimer?.cancel();
-    _mediaSessionUpdateTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _mediaSessionUpdateTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (currentTrack != null && isPlaying) {
-        // 只更新播放进度，不更新其他信息
-        AudioPlayerHandler.instance.updatePlaybackState(_playerState, isPlaying, _position);
+        try {
+          // 获取实时播放位置
+          final currentPosition = await _audioPlayer.getCurrentPosition();
+          final realTimePosition = currentPosition ?? Duration.zero;
+          
+          // 更新缓存的位置
+          _position = realTimePosition;
+          
+          // 更新MediaSession播放进度
+          AudioPlayerHandler.instance.updatePlaybackState(_playerState, isPlaying, realTimePosition);
+          
+          // 每10秒强制更新一次完整的MediaSession信息
+          if (realTimePosition.inSeconds % 10 == 0) {
+            AudioPlayerHandler.instance.updateCurrentMediaItem(currentTrack!);
+          }
+          
+          AppLogger.debug('🎵 后台MediaSession更新: ${realTimePosition.inMinutes}:${(realTimePosition.inSeconds % 60).toString().padLeft(2, '0')}');
+        } catch (e) {
+          AppLogger.warning('获取播放位置失败: $e');
+        }
       }
     });
   }
@@ -164,8 +182,8 @@ class PlayerService extends ChangeNotifier {
   }
 
   /// 更新系统媒体会话
-  void _updateMediaSession() {
-    _forceUpdateMediaSession();
+  Future<void> _updateMediaSession() async {
+    await _forceUpdateMediaSession();
   }
 
   /// 加载用户设置
@@ -229,14 +247,33 @@ class PlayerService extends ChangeNotifier {
   }
 
   /// 强制更新媒体会话（用于状态和歌曲变化）
-  void _forceUpdateMediaSession() {
+  Future<void> _forceUpdateMediaSession() async {
     try {
       if (currentTrack != null) {
-        // 更新 AudioService 的媒体信息和播放状态
-        AudioPlayerHandler.instance.updateCurrentMediaItem(currentTrack!);
-        AudioPlayerHandler.instance.updatePlaybackState(_playerState, isPlaying, _position);
-        
-        AppLogger.info('💡 更新媒体会话: ${currentTrack!.name} - ${currentTrack!.artistNames}');
+        // 获取实时播放位置
+        _audioPlayer.getCurrentPosition().then((currentPosition) {
+          final realTimePosition = currentPosition ?? _position;
+          
+          // 更新 AudioService 的媒体信息和播放状态
+          AudioPlayerHandler.instance.updateCurrentMediaItem(currentTrack!);
+          AudioPlayerHandler.instance.updatePlaybackState(_playerState, isPlaying, realTimePosition);
+          
+          // 更新缓存的位置
+          _position = realTimePosition;
+          
+          AppLogger.info('💡 更新媒体会话: ${currentTrack!.name} - ${currentTrack!.artistNames} [${realTimePosition.inMinutes}:${(realTimePosition.inSeconds % 60).toString().padLeft(2, '0')}]');
+        }).catchError((e) async {
+          // 如果获取位置失败，尝试再次获取或使用缓存的位置
+          AppLogger.warning('获取实时位置失败，使用缓存位置: $e');
+          Duration fallbackPosition = _position;
+          try {
+            fallbackPosition = await _audioPlayer.getCurrentPosition() ?? _position;
+          } catch (e2) {
+            AppLogger.warning('再次获取位置失败，使用缓存位置: $e2');
+          }
+          AudioPlayerHandler.instance.updateCurrentMediaItem(currentTrack!);
+          AudioPlayerHandler.instance.updatePlaybackState(_playerState, isPlaying, fallbackPosition);
+        });
       } else {
         // 清除媒体会话
         AudioPlayerHandler.instance.updatePlaybackState(PlaybackState.stopped, false, Duration.zero);
@@ -262,8 +299,8 @@ class PlayerService extends ChangeNotifier {
       _loadSavedStateInBackground();
       
       // 延迟同步MediaSession状态，确保AudioService完全初始化
-      Future.delayed(const Duration(seconds: 2), () {
-        _syncMediaSessionState();
+      Future.delayed(const Duration(seconds: 2), () async {
+        await _syncMediaSessionState();
       });
       
       AppLogger.info('播放器服务初始化完成');
@@ -273,13 +310,22 @@ class PlayerService extends ChangeNotifier {
   }
   
   /// 同步MediaSession状态
-  void _syncMediaSessionState() {
+  Future<void> _syncMediaSessionState() async {
     try {
       if (currentTrack != null) {
         AppLogger.info('🎵 同步MediaSession状态: ${currentTrack!.name}');
         AudioPlayerHandler.instance.updateCurrentMediaItem(currentTrack!);
         AudioPlayerHandler.instance.updatePlaylist(_playlist, _currentIndex);
-        AudioPlayerHandler.instance.updatePlaybackState(_playerState, isPlaying, _position);
+        
+        // 获取实时位置进行状态同步
+        try {
+          final realTimePosition = await _audioPlayer.getCurrentPosition() ?? _position;
+          AudioPlayerHandler.instance.updatePlaybackState(_playerState, isPlaying, realTimePosition);
+        } catch (e) {
+          // 获取失败则使用缓存位置
+          AppLogger.warning('同步状态时获取位置失败，使用缓存位置: $e');
+          AudioPlayerHandler.instance.updatePlaybackState(_playerState, isPlaying, _position);
+        }
       } else {
         AppLogger.info('🎵 MediaSession状态同步：无当前歌曲');
         // 确保空状态也正确同步
@@ -496,11 +542,11 @@ class PlayerService extends ChangeNotifier {
   }
   
   /// 带重试机制的MediaSession更新
-  void _updateMediaSessionWithRetry([int retryCount = 0]) {
+  Future<void> _updateMediaSessionWithRetry([int retryCount = 0]) async {
     const maxRetries = 3;
     
     try {
-      _updateMediaSession();
+      await _updateMediaSession();
     } catch (e) {
       if (retryCount < maxRetries) {
         AppLogger.warning('MediaSession更新失败，重试第${retryCount + 1}次: $e');
@@ -584,7 +630,7 @@ class PlayerService extends ChangeNotifier {
         // 如果是暂停状态，恢复播放
         AppLogger.info('🎵 从暂停状态恢复播放: ${currentTrack!.name}');
         await _audioPlayer.resume();
-        _forceUpdateMediaSession(); // 确保MediaSession状态同步
+        await _forceUpdateMediaSession(); // 确保MediaSession状态同步
       }
     } else {
       AppLogger.warning('🎵 无当前歌曲，无法播放');
