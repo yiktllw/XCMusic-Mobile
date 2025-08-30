@@ -35,8 +35,8 @@ void main() async {
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.xcmusic.audio',
         androidNotificationChannelName: 'XCMusic Audio Service',
-        androidNotificationOngoing: true,
-        androidStopForegroundOnPause: true,
+        androidNotificationOngoing: false, // 改为false，避免强制前台
+        androidStopForegroundOnPause: false, // 暂停时不停止前台服务
         androidShowNotificationBadge: true,
         androidNotificationIcon: 'mipmap/ic_launcher',
         // 增加MediaBrowserService支持
@@ -44,6 +44,8 @@ void main() async {
           'android.service.media.extra.RECENT': true,
           'android.service.media.extra.OFFLINE': true,
         },
+        // 添加前台服务类型
+        androidResumeOnClick: true,
       ),
     );
     AppLogger.app('音频服务初始化成功');
