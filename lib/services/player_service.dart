@@ -58,6 +58,9 @@ class PlayerService extends ChangeNotifier {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   
+  // 用于跟踪MediaSession中的歌曲变化
+  String? _lastUpdateTrackId;
+  
   // 上次保存状态的时间，避免频繁保存
   DateTime? _lastSaveTime;
 
@@ -159,11 +162,23 @@ class PlayerService extends ChangeNotifier {
           // 更新缓存的位置
           _position = realTimePosition;
           
+          // 检查歌曲是否发生变化
+          final currentTrackId = currentTrack!.id.toString();
+          final trackChanged = _lastUpdateTrackId != currentTrackId;
+          
+          if (trackChanged) {
+            // 歌曲变化时立即更新完整信息
+            AudioPlayerHandler.instance.updateCurrentMediaItem(currentTrack!);
+            AudioPlayerHandler.instance.updatePlaylist(_playlist, _currentIndex);
+            _lastUpdateTrackId = currentTrackId;
+            AppLogger.info('🎵 检测到歌曲变化，立即更新: ${currentTrack!.name}');
+          }
+          
           // 更新MediaSession播放进度
           AudioPlayerHandler.instance.updatePlaybackState(_playerState, isPlaying, realTimePosition);
           
-          // 每10秒强制更新一次完整的MediaSession信息
-          if (realTimePosition.inSeconds % 10 == 0) {
+          // 每10秒强制更新一次完整的MediaSession信息（防止遗漏）
+          if (realTimePosition.inSeconds % 10 == 0 && !trackChanged) {
             AudioPlayerHandler.instance.updateCurrentMediaItem(currentTrack!);
           }
           
@@ -179,11 +194,7 @@ class PlayerService extends ChangeNotifier {
   void _stopMediaSessionUpdateTimer() {
     _mediaSessionUpdateTimer?.cancel();
     _mediaSessionUpdateTimer = null;
-  }
-
-  /// 更新系统媒体会话
-  Future<void> _updateMediaSession() async {
-    await _forceUpdateMediaSession();
+    _lastUpdateTrackId = null; // 重置跟踪变量
   }
 
   /// 加载用户设置
@@ -521,6 +532,12 @@ class PlayerService extends ChangeNotifier {
       _playerState = PlaybackState.buffering;
       notifyListeners();
 
+      // 立即更新MediaSession歌曲信息（在开始播放前）
+      AudioPlayerHandler.instance.updateCurrentMediaItem(currentTrack!);
+      AudioPlayerHandler.instance.updatePlaylist(_playlist, _currentIndex);
+      AudioPlayerHandler.instance.updatePlaybackState(_playerState, false, Duration.zero);
+      AppLogger.info('🎵 立即更新歌曲信息: ${currentTrack!.name}');
+
       // 获取播放链接
       final url = await _getSongUrl(currentTrack!.id.toString());
       if (url != null) {
@@ -528,8 +545,8 @@ class PlayerService extends ChangeNotifier {
         _position = Duration.zero;
         await _audioPlayer.play(UrlSource(url));
         
-        // 更新媒体会话（使用延迟重试机制）
-        _updateMediaSessionWithRetry();
+        // 播放开始后再次确保状态同步
+        await _forceUpdateMediaSession();
       } else {
         // 如果获取不到播放链接，跳到下一首
         await next();
@@ -541,24 +558,6 @@ class PlayerService extends ChangeNotifier {
     }
   }
   
-  /// 带重试机制的MediaSession更新
-  Future<void> _updateMediaSessionWithRetry([int retryCount = 0]) async {
-    const maxRetries = 3;
-    
-    try {
-      await _updateMediaSession();
-    } catch (e) {
-      if (retryCount < maxRetries) {
-        AppLogger.warning('MediaSession更新失败，重试第${retryCount + 1}次: $e');
-        Future.delayed(Duration(milliseconds: 500 * (retryCount + 1)), () {
-          _updateMediaSessionWithRetry(retryCount + 1);
-        });
-      } else {
-        AppLogger.error('MediaSession更新最终失败: $e');
-      }
-    }
-  }
-
   /// 获取歌曲播放链接
   Future<String?> _getSongUrl(String songId) async {
     try {
