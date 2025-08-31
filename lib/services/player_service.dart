@@ -235,6 +235,16 @@ class PlayerService extends ChangeNotifier {
     await _updateAudioContext();
   }
 
+  /// 公开方法：设置音量
+  Future<void> setVolume(double volume) async {
+    try {
+      await _audioPlayer.setVolume(volume.clamp(0.0, 1.0));
+      AppLogger.info('🔊 音量已设置为: ${(volume * 100).round()}%');
+    } catch (e) {
+      AppLogger.error('设置音量失败: $e');
+    }
+  }
+
   /// 加载用户设置
   Future<void> _loadSettings() async {
     int retryCount = 0;

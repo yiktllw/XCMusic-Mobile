@@ -17,7 +17,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _autoPlay = false;
-  double _volume = 0.8;
+  double _volume = 1.0;
   bool _allowInterruption = true; // 是否允许与其他应用同时播放音频
 
   @override
@@ -35,7 +35,7 @@ class _SettingsPageState extends State<SettingsPage> {
         final prefs = await SharedPreferences.getInstance();
         setState(() {
           _autoPlay = prefs.getBool('auto_play') ?? false;
-          _volume = prefs.getDouble('volume') ?? 0.8;
+          _volume = prefs.getDouble('volume') ?? 1.0;
           _allowInterruption = prefs.getBool('allow_interruption') ?? true;
         });
         
@@ -52,7 +52,7 @@ class _SettingsPageState extends State<SettingsPage> {
           // 使用默认值
           setState(() {
             _autoPlay = false;
-            _volume = 0.8;
+            _volume = 1.0;
             _allowInterruption = true;
           });
         }
@@ -158,10 +158,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 Text('${(_volume * 100).round()}%'),
                 Slider(
                   value: _volume,
-                  onChanged: (double value) {
+                  onChanged: (double value) async {
                     setState(() {
                       _volume = value;
                     });
+                    
+                    // 立即设置音量
+                    try {
+                      final playerService = Provider.of<PlayerService>(context, listen: false);
+                      await playerService.setVolume(value);
+                    } catch (e) {
+                      AppLogger.error('设置音量失败', e);
+                    }
                   },
                   onChangeEnd: (double value) {
                     _saveSettings();
