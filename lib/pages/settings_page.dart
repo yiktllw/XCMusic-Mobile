@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:xcmusic_mobile/utils/app_logger.dart';
 import '../services/theme_service.dart';
+import '../services/player_service.dart';
 import '../utils/top_banner.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -17,6 +18,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _autoPlay = false;
   double _volume = 0.8;
+  bool _allowInterruption = true; // 是否允许与其他应用同时播放音频
 
   @override
   void initState() {
@@ -34,9 +36,10 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() {
           _autoPlay = prefs.getBool('auto_play') ?? false;
           _volume = prefs.getDouble('volume') ?? 0.8;
+          _allowInterruption = prefs.getBool('allow_interruption') ?? true;
         });
         
-        AppLogger.info('设置已加载: auto_play=$_autoPlay, volume=$_volume');
+        AppLogger.info('设置已加载: auto_play=$_autoPlay, volume=$_volume, allow_interruption=$_allowInterruption');
         return; // 成功加载，退出重试循环
       } catch (e) {
         retryCount++;
@@ -50,6 +53,7 @@ class _SettingsPageState extends State<SettingsPage> {
           setState(() {
             _autoPlay = false;
             _volume = 0.8;
+            _allowInterruption = true;
           });
         }
       }
@@ -65,8 +69,9 @@ class _SettingsPageState extends State<SettingsPage> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('auto_play', _autoPlay);
         await prefs.setDouble('volume', _volume);
+        await prefs.setBool('allow_interruption', _allowInterruption);
 
-        AppLogger.info('设置已保存: auto_play=$_autoPlay, volume=$_volume');
+        AppLogger.info('设置已保存: auto_play=$_autoPlay, volume=$_volume, allow_interruption=$_allowInterruption');
 
         if (mounted) {
           TopBanner.showSuccess(
@@ -123,6 +128,26 @@ class _SettingsPageState extends State<SettingsPage> {
                 _autoPlay = value;
               });
               _saveSettings();
+            },
+          ),
+          SwitchListTile(
+            title: const Text('与其他应用同时播放'),
+            subtitle: const Text('允许与其他应用同时播放音频，不互相中断'),
+            value: _allowInterruption,
+            onChanged: (bool value) async {
+              setState(() {
+                _allowInterruption = value;
+              });
+              await _saveSettings();
+              
+              // 立即更新音频焦点设置
+              try {
+                final playerService = Provider.of<PlayerService>(context, listen: false);
+                await playerService.updateAudioFocusSettings();
+                AppLogger.info('音频焦点设置已更新');
+              } catch (e) {
+                AppLogger.error('更新音频焦点设置失败', e);
+              }
             },
           ),
           ListTile(

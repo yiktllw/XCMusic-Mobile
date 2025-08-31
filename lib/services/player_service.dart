@@ -66,20 +66,8 @@ class PlayerService extends ChangeNotifier {
 
   /// 初始化播放器
   void _initializePlayer() {
-    // 配置音频播放器模式为媒体
-    _audioPlayer.setAudioContext(AudioContext(
-      iOS: AudioContextIOS(
-        category: AVAudioSessionCategory.playback,
-        // playback 类别不需要设置任何特殊选项
-      ),
-      android: AudioContextAndroid(
-        isSpeakerphoneOn: true,
-        stayAwake: true,
-        contentType: AndroidContentType.music,
-        usageType: AndroidUsageType.media,
-        audioFocus: AndroidAudioFocus.gain,
-      ),
-    ));
+    // 初始化音频上下文
+    _updateAudioContext();
     
     // 监听播放状态变化
     _audioPlayer.onPlayerStateChanged.listen((state) async {
@@ -205,6 +193,46 @@ class PlayerService extends ChangeNotifier {
     _mediaSessionUpdateTimer?.cancel();
     _mediaSessionUpdateTimer = null;
     _lastUpdateTrackId = null; // 重置跟踪变量
+  }
+
+  /// 更新音频上下文配置
+  Future<void> _updateAudioContext() async {
+    // 读取设置
+    final prefs = await SharedPreferences.getInstance();
+    final allowInterruption = prefs.getBool('allow_interruption') ?? true;
+    
+    AppLogger.info('🔊 开始更新音频上下文 - 允许与其他应用同时播放: $allowInterruption');
+    
+    // 根据设置选择合适的音频焦点策略
+    final audioFocus = allowInterruption 
+        ? AndroidAudioFocus.none                   // 不请求音频焦点，允许同时播放
+        : AndroidAudioFocus.gain;                  // 请求独占音频焦点
+    
+    AppLogger.info('🔊 选择的音频焦点策略: ${audioFocus.toString()}');
+    
+    // 配置音频播放器模式为媒体
+    _audioPlayer.setAudioContext(AudioContext(
+      iOS: AudioContextIOS(
+        category: AVAudioSessionCategory.playback,
+        options: allowInterruption 
+            ? {AVAudioSessionOptions.mixWithOthers}  // iOS允许混音
+            : {},
+      ),
+      android: AudioContextAndroid(
+        isSpeakerphoneOn: true,
+        stayAwake: true,
+        contentType: AndroidContentType.music,
+        usageType: AndroidUsageType.media,
+        audioFocus: audioFocus,
+      ),
+    ));
+    
+    AppLogger.info('🔊 音频上下文已更新: allowInterruption=$allowInterruption, audioFocus=$audioFocus');
+  }
+
+  /// 公开方法：更新音频焦点设置
+  Future<void> updateAudioFocusSettings() async {
+    await _updateAudioContext();
   }
 
   /// 加载用户设置
@@ -535,6 +563,9 @@ class PlayerService extends ChangeNotifier {
       _playerState = PlaybackState.buffering;
       notifyListeners();
 
+      // 确保音频上下文在播放前正确设置
+      await _updateAudioContext();
+
       // 立即更新MediaSession歌曲信息（在开始播放前）
       AudioPlayerHandler.instance.updateCurrentMediaItem(currentTrack!);
       AudioPlayerHandler.instance.updatePlaylist(_playlist, _currentIndex);
@@ -642,6 +673,9 @@ class PlayerService extends ChangeNotifier {
   /// 播放
   Future<void> play() async {
     // 播放方法被调用
+    
+    // 确保音频上下文在每次播放时都正确设置
+    await _updateAudioContext();
     
     if (currentTrack != null) {
       if (_playerState == PlaybackState.stopped) {
