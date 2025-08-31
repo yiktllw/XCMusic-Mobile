@@ -28,7 +28,7 @@ class SearchResultPage extends StatefulWidget {
 class _SearchResultPageState extends State<SearchResultPage>
     with TickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // 搜索类型和对应的名称
   final Map<int, String> _searchTypes = {
     1: '歌曲',
@@ -43,11 +43,11 @@ class _SearchResultPageState extends State<SearchResultPage>
   Map<int, List<dynamic>> _searchResults = {};
   Map<int, int> _searchCounts = {};
   Map<int, bool> _isLoading = {};
-  
+
   // 分页相关
   Map<int, int> _currentPages = {};
-  final int _pageSize = 1000;
-  
+  final int _pageSize = 30;
+
   // 管理每个歌曲的歌词展开状态
   final Set<int> _expandedLyrics = <int>{};
 
@@ -59,7 +59,7 @@ class _SearchResultPageState extends State<SearchResultPage>
       vsync: this,
       initialIndex: _getInitialTabIndex(),
     );
-    
+
     // 初始化状态
     for (int type in _searchTypes.keys) {
       _searchResults[type] = [];
@@ -67,10 +67,10 @@ class _SearchResultPageState extends State<SearchResultPage>
       _isLoading[type] = false;
       _currentPages[type] = 0;
     }
-    
+
     // 监听tab切换
     _tabController.addListener(_onTabChanged);
-    
+
     // 加载初始数据
     _loadSearchResults(widget.initialType);
   }
@@ -91,12 +91,13 @@ class _SearchResultPageState extends State<SearchResultPage>
   /// Tab切换监听
   void _onTabChanged() {
     if (!_tabController.indexIsChanging) return;
-    
+
     final typesList = _searchTypes.keys.toList();
     final currentType = typesList[_tabController.index];
-    
+
     // 如果该类型还没有数据，则加载
-    if (_searchResults[currentType]?.isEmpty == true && !_isLoading[currentType]!) {
+    if (_searchResults[currentType]?.isEmpty == true &&
+        !_isLoading[currentType]!) {
       _loadSearchResults(currentType);
     }
   }
@@ -112,17 +113,17 @@ class _SearchResultPageState extends State<SearchResultPage>
     try {
       final api = ApiManager();
       final offset = loadMore ? (_currentPages[type]! + 1) * _pageSize : 0;
-      
+
       final result = await api.api.cloudsearch(
         keywords: widget.query,
         type: type.toString(),
-        limit: _pageSize,
+        limit: 100,
         offset: offset,
       );
 
       if (result['body']['code'] == 200) {
         final data = result['body']['result'];
-        
+
         List<dynamic> newItems = [];
         int totalCount = 0;
 
@@ -166,7 +167,9 @@ class _SearchResultPageState extends State<SearchResultPage>
           _isLoading[type] = false;
         });
 
-        AppLogger.info('搜索结果加载完成: 类型=$type, 数量=${newItems.length}, 总数=$totalCount');
+        AppLogger.info(
+          '搜索结果加载完成: 类型=$type, 数量=${newItems.length}, 总数=$totalCount',
+        );
       } else {
         throw Exception('搜索失败: ${result['body']['code']}');
       }
@@ -176,9 +179,9 @@ class _SearchResultPageState extends State<SearchResultPage>
         _isLoading[type] = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('搜索失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('搜索失败: $e')));
       }
     }
   }
@@ -220,9 +223,7 @@ class _SearchResultPageState extends State<SearchResultPage>
   /// 构建Tab标签
   List<Tab> _buildTabs() {
     return _searchTypes.entries.map((entry) {
-      return Tab(
-        text: entry.value,
-      );
+      return Tab(text: entry.value);
     }).toList();
   }
 
@@ -232,35 +233,50 @@ class _SearchResultPageState extends State<SearchResultPage>
       return const Center(child: Text('暂无结果'));
     }
 
-    // 对于歌词搜索，由于需要显示歌词内容，暂时保持使用ListView
+    // 对于歌词搜索，由于需要显示歌词内容，使用ListView并添加触底加载
     if (isLyricsSearch) {
-      return ListView.builder(
-        itemCount: songs.length + 1, // +1 for load more button
-        itemBuilder: (context, index) {
-          if (index == songs.length) {
-            // 加载更多按钮
-            return _buildLoadMoreButton(1006);
-          }
-
-          final song = songs[index];
-          try {
-            final track = Track.fromJson(song);
-            
-            // 提取歌词信息
-            List<String>? lyrics;
-            if (song['lyrics'] != null) {
-              lyrics = (song['lyrics'] as List).cast<String>();
+      return NotificationListener<ScrollNotification>(
+        onNotification: (ScrollNotification scrollInfo) {
+          // 检查是否滚动到底部
+          if (!_isLoading[1006]! &&
+              scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+            final currentCount = _searchResults[1006]?.length ?? 0;
+            final totalCount = _searchCounts[1006] ?? 0;
+            if (currentCount < totalCount) {
+              _loadSearchResults(1006, loadMore: true);
             }
-            
-            return _buildSongItem(track, index, lyrics: lyrics);
-          } catch (e) {
-            AppLogger.error('解析歌曲数据失败', e);
-            return ListTile(
-              title: Text(song['name'] ?? '未知歌曲'),
-              subtitle: Text('数据解析失败'),
-            );
           }
+          return false;
         },
+        child: ListView.builder(
+          padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
+          itemCount: songs.length + (_shouldShowLoadingIndicator(1006) ? 1 : 0),
+          itemBuilder: (context, index) {
+            // 如果是最后一项且正在加载，显示加载指示器
+            if (index == songs.length) {
+              return _buildLoadingIndicator(1006);
+            }
+
+            final song = songs[index];
+            try {
+              final track = Track.fromJson(song);
+
+              // 提取歌词信息
+              List<String>? lyrics;
+              if (song['lyrics'] != null) {
+                lyrics = (song['lyrics'] as List).cast<String>();
+              }
+
+              return _buildSongItem(track, index, lyrics: lyrics);
+            } catch (e) {
+              AppLogger.error('解析歌曲数据失败', e);
+              return ListTile(
+                title: Text(song['name'] ?? '未知歌曲'),
+                subtitle: Text('数据解析失败'),
+              );
+            }
+          },
+        ),
       );
     }
 
@@ -280,30 +296,46 @@ class _SearchResultPageState extends State<SearchResultPage>
       return const Center(child: Text('暂无有效歌曲数据'));
     }
 
-    // 使用虚拟滚动组件
-    return Column(
-      children: [
-        Expanded(
-          child: VirtualSongList(
-            tracks: tracks,
-            showIndex: true,
-            enableSearch: false, // 搜索结果页面不需要内置搜索
-            itemHeight: SongListLayoutConfig.itemHeight,
-            onTrackTap: (track, index) {
-              _playTrack(track, index, tracks);
-            },
-            onPlayTap: (track, index) {
-              _playTrack(track, index, tracks);
-            },
-            onMoreTap: (track, index) {
-              // TODO: 显示更多操作菜单
-              AppLogger.info('点击更多操作: ${track.name}');
-            },
+    // 使用虚拟滚动组件，并添加触底加载支持
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification scrollInfo) {
+        // 检查是否滚动到底部
+        if (!_isLoading[1]! &&
+            scrollInfo.metrics.pixels >=
+                scrollInfo.metrics.maxScrollExtent - 100) {
+          // 提前100px触发
+          final currentCount = _searchResults[1]?.length ?? 0;
+          final totalCount = _searchCounts[1] ?? 0;
+          if (currentCount < totalCount) {
+            _loadSearchResults(1, loadMore: true);
+          }
+        }
+        return false;
+      },
+      child: Column(
+        children: [
+          Expanded(
+            child: VirtualSongList(
+              tracks: tracks,
+              showIndex: true,
+              enableSearch: false, // 搜索结果页面不需要内置搜索
+              itemHeight: SongListLayoutConfig.itemHeight,
+              onTrackTap: (track, index) {
+                _playTrack(track, index, tracks);
+              },
+              onPlayTap: (track, index) {
+                _playTrack(track, index, tracks);
+              },
+              onMoreTap: (track, index) {
+                // TODO: 显示更多操作菜单
+                AppLogger.info('点击更多操作: ${track.name}');
+              },
+            ),
           ),
-        ),
-        // 加载更多按钮
-        _buildLoadMoreButton(1),
-      ],
+          // 显示加载状态
+          if (_shouldShowLoadingIndicator(1)) _buildLoadingIndicator(1),
+        ],
+      ),
     );
   }
 
@@ -311,7 +343,7 @@ class _SearchResultPageState extends State<SearchResultPage>
   void _playTrack(Track track, int index, List<Track> allTracks) {
     AppLogger.info('点击歌曲: ${track.name}');
     final playerService = Provider.of<PlayerService>(context, listen: false);
-    
+
     // 设置播放列表并播放指定歌曲
     playerService.playPlaylist(allTracks, startIndex: index);
     AppLogger.info('开始播放: ${track.name}');
@@ -329,10 +361,14 @@ class _SearchResultPageState extends State<SearchResultPage>
             onTap: () {
               AppLogger.info('点击歌曲: ${track.name}');
               // 实现播放逻辑：将当前搜索结果设为播放列表并播放选中歌曲
-              final playerService = Provider.of<PlayerService>(context, listen: false);
-              final searchType = _searchTypes.keys.toList()[_tabController.index];
+              final playerService = Provider.of<PlayerService>(
+                context,
+                listen: false,
+              );
+              final searchType = _searchTypes.keys
+                  .toList()[_tabController.index];
               final songs = _searchResults[searchType] ?? [];
-              
+
               // 将搜索结果转换为Track列表
               List<Track> tracks = [];
               for (var song in songs) {
@@ -342,7 +378,7 @@ class _SearchResultPageState extends State<SearchResultPage>
                   AppLogger.error('转换歌曲数据失败', e);
                 }
               }
-              
+
               if (tracks.isNotEmpty) {
                 // 设置播放列表并播放指定歌曲
                 playerService.playPlaylist(tracks, startIndex: index);
@@ -360,12 +396,14 @@ class _SearchResultPageState extends State<SearchResultPage>
                     textAlign: TextAlign.center,
                   ),
                 ),
-                
+
                 const SizedBox(width: SongListLayoutConfig.spacingMedium),
-                
+
                 // 歌曲封面
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(SongListLayoutConfig.albumCoverRadius),
+                  borderRadius: BorderRadius.circular(
+                    SongListLayoutConfig.albumCoverRadius,
+                  ),
                   child: Image.network(
                     "${track.album.picUrl}${SongListLayoutConfig.albumCoverParam}",
                     width: SongListLayoutConfig.albumCoverSize,
@@ -375,7 +413,9 @@ class _SearchResultPageState extends State<SearchResultPage>
                       return Container(
                         width: SongListLayoutConfig.albumCoverSize,
                         height: SongListLayoutConfig.albumCoverSize,
-                        color: SongListStyleConfig.getErrorBackgroundColor(context),
+                        color: SongListStyleConfig.getErrorBackgroundColor(
+                          context,
+                        ),
                         child: Icon(
                           Icons.music_note,
                           color: SongListStyleConfig.getErrorIconColor(context),
@@ -385,9 +425,9 @@ class _SearchResultPageState extends State<SearchResultPage>
                     },
                   ),
                 ),
-                
+
                 const SizedBox(width: SongListLayoutConfig.spacingMedium),
-                
+
                 // 歌曲信息
                 Expanded(
                   child: Column(
@@ -399,7 +439,9 @@ class _SearchResultPageState extends State<SearchResultPage>
                           Expanded(
                             child: Text(
                               track.name,
-                              style: SongListStyleConfig.getSongNameStyle(context),
+                              style: SongListStyleConfig.getSongNameStyle(
+                                context,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -411,7 +453,9 @@ class _SearchResultPageState extends State<SearchResultPage>
                               padding: SongListLayoutConfig.vipPadding,
                               decoration: BoxDecoration(
                                 color: SongListStyleConfig.vipBackgroundColor,
-                                borderRadius: BorderRadius.circular(SongListLayoutConfig.vipRadius),
+                                borderRadius: BorderRadius.circular(
+                                  SongListLayoutConfig.vipRadius,
+                                ),
                               ),
                               child: const Text(
                                 'VIP',
@@ -421,9 +465,9 @@ class _SearchResultPageState extends State<SearchResultPage>
                           ],
                         ],
                       ),
-                      
+
                       const SizedBox(height: SongListLayoutConfig.spacingSmall),
-                      
+
                       // 艺术家和专辑
                       Text(
                         '${track.artistNames} • ${track.album.name}',
@@ -434,7 +478,7 @@ class _SearchResultPageState extends State<SearchResultPage>
                     ],
                   ),
                 ),
-                
+
                 // 更多操作
                 IconButton(
                   icon: Icon(
@@ -449,13 +493,15 @@ class _SearchResultPageState extends State<SearchResultPage>
               ],
             ),
           ),
-          
+
           // 歌词展示（仅在歌词搜索时显示，另开一行，不可点击播放）
           if (lyrics != null && lyrics.isNotEmpty) ...[
             const SizedBox(height: 8),
             Padding(
               padding: EdgeInsets.only(
-                left: SongListLayoutConfig.indexWidth + SongListLayoutConfig.spacingMedium,
+                left:
+                    SongListLayoutConfig.indexWidth +
+                    SongListLayoutConfig.spacingMedium,
               ),
               child: _buildLyricsWidget(lyrics, track.id),
             ),
@@ -471,25 +517,29 @@ class _SearchResultPageState extends State<SearchResultPage>
       builder: (context, setState) {
         // 为每个歌曲维护独立的展开状态
         final isExpanded = _expandedLyrics.contains(trackId);
-        
+
         // 处理原始歌词，保持原始顺序
         final processedLyrics = _processLyrics(lyrics);
-        
+
         // 根据展开状态选择显示内容：
         // - 展开状态：显示完整的原始歌词（按原始顺序）
         // - 收起状态：显示智能选择的预览片段（包含加粗行的上下文）
-        final displayLyrics = isExpanded 
-          ? processedLyrics  // 完整原始歌词，加粗行在正确位置
-          : _getCollapsedLyrics(processedLyrics);  // 预览片段，加粗行优先显示
-        
+        final displayLyrics = isExpanded
+            ? processedLyrics // 完整原始歌词，加粗行在正确位置
+            : _getCollapsedLyrics(processedLyrics); // 预览片段，加粗行优先显示
+
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+              color: Theme.of(
+                context,
+              ).colorScheme.outline.withValues(alpha: 0.2),
             ),
           ),
           child: Column(
@@ -530,7 +580,10 @@ class _SearchResultPageState extends State<SearchResultPage>
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
+                        ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -544,7 +597,9 @@ class _SearchResultPageState extends State<SearchResultPage>
                             ),
                             const SizedBox(width: 2),
                             Icon(
-                              isExpanded ? Icons.expand_less : Icons.expand_more,
+                              isExpanded
+                                  ? Icons.expand_less
+                                  : Icons.expand_more,
                               size: 14,
                               color: Theme.of(context).colorScheme.primary,
                             ),
@@ -556,10 +611,14 @@ class _SearchResultPageState extends State<SearchResultPage>
               ),
               const SizedBox(height: 6),
               // 歌词内容
-              ...displayLyrics.map((lyricData) => Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: _buildLyricLine(lyricData),
-              )).toList(),
+              ...displayLyrics
+                  .map(
+                    (lyricData) => Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: _buildLyricLine(lyricData),
+                    ),
+                  )
+                  .toList(),
             ],
           ),
         );
@@ -572,7 +631,7 @@ class _SearchResultPageState extends State<SearchResultPage>
     final text = lyricData['text'] as String;
     final highlights = lyricData['highlights'] as List<Map<String, int>>;
     final isEllipsis = lyricData['isEllipsis'] as bool? ?? false;
-    
+
     // 如果是省略指示符，使用特殊样式
     if (isEllipsis) {
       return Center(
@@ -580,14 +639,16 @@ class _SearchResultPageState extends State<SearchResultPage>
           text,
           style: TextStyle(
             fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.5),
             height: 1.3,
             fontStyle: FontStyle.italic,
           ),
         ),
       );
     }
-    
+
     if (highlights.isEmpty) {
       return Text(
         text,
@@ -599,103 +660,103 @@ class _SearchResultPageState extends State<SearchResultPage>
         softWrap: true,
       );
     }
-    
+
     // 构建富文本，包含加粗部分
     List<TextSpan> spans = [];
     int lastEnd = 0;
-    
+
     for (var highlight in highlights) {
       final start = highlight['start']!;
       final end = highlight['end']!;
-      
+
       // 添加普通文本
       if (start > lastEnd) {
-        spans.add(TextSpan(
-          text: text.substring(lastEnd, start),
+        spans.add(
+          TextSpan(
+            text: text.substring(lastEnd, start),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurface,
+              height: 1.3,
+            ),
+          ),
+        );
+      }
+
+      // 添加加粗文本
+      spans.add(
+        TextSpan(
+          text: text.substring(start, end),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.bold,
+            height: 1.3,
+          ),
+        ),
+      );
+
+      lastEnd = end;
+    }
+
+    // 添加剩余的普通文本
+    if (lastEnd < text.length) {
+      spans.add(
+        TextSpan(
+          text: text.substring(lastEnd),
           style: TextStyle(
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurface,
             height: 1.3,
           ),
-        ));
-      }
-      
-      // 添加加粗文本
-      spans.add(TextSpan(
-        text: text.substring(start, end),
-        style: TextStyle(
-          fontSize: 12,
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.bold,
-          height: 1.3,
         ),
-      ));
-      
-      lastEnd = end;
+      );
     }
-    
-    // 添加剩余的普通文本
-    if (lastEnd < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(lastEnd),
-        style: TextStyle(
-          fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurface,
-          height: 1.3,
-        ),
-      ));
-    }
-    
-    return RichText(
-      text: TextSpan(children: spans),
-      softWrap: true,
-    );
+
+    return RichText(text: TextSpan(children: spans), softWrap: true);
   }
 
   /// 处理歌词，解析HTML标签并提取高亮信息
   List<Map<String, dynamic>> _processLyrics(List<String> lyrics) {
     List<Map<String, dynamic>> processed = [];
-    
+
     for (String lyric in lyrics) {
       if (lyric.trim().isEmpty) continue;
-      
+
       String cleanText = '';
       List<Map<String, int>> highlights = [];
       int currentPos = 0;
-      
+
       // 使用正则表达式匹配<b>标签
       final RegExp boldRegex = RegExp(r'<b>(.*?)</b>');
       final matches = boldRegex.allMatches(lyric);
-      
+
       int lastEnd = 0;
       for (var match in matches) {
         // 添加标签前的文本
         String beforeText = lyric.substring(lastEnd, match.start);
         cleanText += beforeText;
         currentPos += beforeText.length;
-        
+
         // 添加标签内的文本，并记录高亮位置
         String boldText = match.group(1) ?? '';
         int startPos = currentPos;
         cleanText += boldText;
         currentPos += boldText.length;
-        
+
         if (boldText.isNotEmpty) {
-          highlights.add({
-            'start': startPos,
-            'end': currentPos,
-          });
+          highlights.add({'start': startPos, 'end': currentPos});
         }
-        
+
         lastEnd = match.end;
       }
-      
+
       // 添加剩余文本
       cleanText += lyric.substring(lastEnd);
-      
+
       // 移除其他HTML标签
       cleanText = cleanText.replaceAll(RegExp(r'<[^>]*>'), '').trim();
-      
+
       if (cleanText.isNotEmpty) {
         processed.add({
           'text': cleanText,
@@ -704,16 +765,18 @@ class _SearchResultPageState extends State<SearchResultPage>
         });
       }
     }
-    
+
     return processed;
   }
 
   /// 获取收起状态下的歌词（显示加粗部分附近的几行）
-  List<Map<String, dynamic>> _getCollapsedLyrics(List<Map<String, dynamic>> processedLyrics) {
+  List<Map<String, dynamic>> _getCollapsedLyrics(
+    List<Map<String, dynamic>> processedLyrics,
+  ) {
     if (processedLyrics.length <= 3) {
       return processedLyrics;
     }
-    
+
     // 找到包含高亮的行
     List<int> highlightIndexes = [];
     for (int i = 0; i < processedLyrics.length; i++) {
@@ -721,12 +784,12 @@ class _SearchResultPageState extends State<SearchResultPage>
         highlightIndexes.add(i);
       }
     }
-    
+
     if (highlightIndexes.isEmpty) {
       // 如果没有高亮，显示前3行
       return processedLyrics.take(3).toList();
     }
-    
+
     // 选择最佳的高亮行来作为预览中心
     // 优先选择位置较靠前但不是第一行的高亮行，这样能提供更好的上下文
     int centerIndex = highlightIndexes.first;
@@ -736,19 +799,22 @@ class _SearchResultPageState extends State<SearchResultPage>
         break;
       }
     }
-    
+
     // 计算要显示的行范围，确保总共显示3行
     int startIndex = (centerIndex - 1).clamp(0, processedLyrics.length);
     int endIndex = (startIndex + 3).clamp(0, processedLyrics.length);
-    
+
     // 如果end超出范围，调整start
     if (endIndex - startIndex < 3 && startIndex > 0) {
       startIndex = (endIndex - 3).clamp(0, processedLyrics.length);
     }
-    
+
     // 为收起状态的歌词添加位置信息，用于在展开时显示正确提示
-    List<Map<String, dynamic>> collapsedLyrics = processedLyrics.sublist(startIndex, endIndex);
-    
+    List<Map<String, dynamic>> collapsedLyrics = processedLyrics.sublist(
+      startIndex,
+      endIndex,
+    );
+
     // 如果收起的内容不是从开头开始，添加省略指示
     if (startIndex > 0) {
       collapsedLyrics.insert(0, {
@@ -758,7 +824,7 @@ class _SearchResultPageState extends State<SearchResultPage>
         'isEllipsis': true,
       });
     }
-    
+
     // 如果收起的内容不是到结尾，添加省略指示
     if (endIndex < processedLyrics.length) {
       collapsedLyrics.add({
@@ -768,8 +834,25 @@ class _SearchResultPageState extends State<SearchResultPage>
         'isEllipsis': true,
       });
     }
-    
+
     return collapsedLyrics;
+  }
+
+  /// 判断是否应该显示加载指示器
+  bool _shouldShowLoadingIndicator(int type) {
+    final isLoading = _isLoading[type] == true;
+    final currentCount = _searchResults[type]?.length ?? 0;
+    final totalCount = _searchCounts[type] ?? 0;
+    // 只有在正在加载时才显示指示器
+    return isLoading && currentCount < totalCount;
+  }
+
+  /// 构建加载指示器
+  Widget _buildLoadingIndicator(int type) {
+    return const Padding(
+      padding: EdgeInsets.all(16),
+      child: Center(child: CircularProgressIndicator()),
+    );
   }
 
   /// 构建歌手列表
@@ -778,31 +861,47 @@ class _SearchResultPageState extends State<SearchResultPage>
       return const Center(child: Text('暂无结果'));
     }
 
-    return ListView.builder(
-      itemCount: artists.length + 1,
-      itemBuilder: (context, index) {
-        if (index == artists.length) {
-          return _buildLoadMoreButton(100);
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification scrollInfo) {
+        // 检查是否滚动到底部
+        if (!_isLoading[100]! &&
+            scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+          final currentCount = _searchResults[100]?.length ?? 0;
+          final totalCount = _searchCounts[100] ?? 0;
+          if (currentCount < totalCount) {
+            _loadSearchResults(100, loadMore: true);
+          }
         }
-
-        final artist = artists[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: artist['picUrl'] != null
-                ? NetworkImage('${artist['picUrl']}?param=50y50')
-                : null,
-            child: artist['picUrl'] == null
-                ? const Icon(Icons.person)
-                : null,
-          ),
-          title: Text(artist['name'] ?? '未知歌手'),
-          subtitle: Text('专辑 ${artist['albumSize'] ?? 0} · 歌曲 ${artist['musicSize'] ?? 0}'),
-          onTap: () {
-            AppLogger.info('点击歌手: ${artist['name']}');
-            // TODO: 跳转到歌手页面
-          },
-        );
+        return false;
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
+        itemCount: artists.length + (_shouldShowLoadingIndicator(100) ? 1 : 0),
+        itemBuilder: (context, index) {
+          // 如果是最后一项且正在加载，显示加载指示器
+          if (index == artists.length) {
+            return _buildLoadingIndicator(100);
+          }
+
+          final artist = artists[index];
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundImage: artist['picUrl'] != null
+                  ? NetworkImage('${artist['picUrl']}?param=50y50')
+                  : null,
+              child: artist['picUrl'] == null ? const Icon(Icons.person) : null,
+            ),
+            title: Text(artist['name'] ?? '未知歌手'),
+            subtitle: Text(
+              '专辑 ${artist['albumSize'] ?? 0} · 歌曲 ${artist['musicSize'] ?? 0}',
+            ),
+            onTap: () {
+              AppLogger.info('点击歌手: ${artist['name']}');
+              // TODO: 跳转到歌手页面
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -812,44 +911,62 @@ class _SearchResultPageState extends State<SearchResultPage>
       return const Center(child: Text('暂无结果'));
     }
 
-    return ListView.builder(
-      itemCount: albums.length + 1,
-      itemBuilder: (context, index) {
-        if (index == albums.length) {
-          return _buildLoadMoreButton(10);
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification scrollInfo) {
+        // 检查是否滚动到底部
+        if (!_isLoading[10]! &&
+            scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+          final currentCount = _searchResults[10]?.length ?? 0;
+          final totalCount = _searchCounts[10] ?? 0;
+          if (currentCount < totalCount) {
+            _loadSearchResults(10, loadMore: true);
+          }
         }
-
-        final album = albums[index];
-        return ListTile(
-          leading: album['picUrl'] != null
-              ? Image.network(
-                  '${album['picUrl']}?param=50y50',
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                )
-              : Container(
-                  width: 50,
-                  height: 50,
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.album),
-                ),
-          title: Text(album['name'] ?? '未知专辑'),
-          subtitle: Text('${album['artist']?['name'] ?? '未知歌手'} · ${album['size'] ?? 0}首'),
-          onTap: () {
-            AppLogger.info('点击专辑: ${album['name']}');
-            // TODO: 跳转到专辑页面
-            Navigator.pushNamed(
-              context,
-              '/album_detail',
-              arguments: {
-                'albumId': album['id']?.toString() ?? '',
-                'albumName': album['name'],
-              },
-            );
-          },
-        );
+        return false;
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
+        itemCount: albums.length + (_shouldShowLoadingIndicator(10) ? 1 : 0),
+        itemBuilder: (context, index) {
+          // 如果是最后一项且正在加载，显示加载指示器
+          if (index == albums.length) {
+            return _buildLoadingIndicator(10);
+          }
+
+          final album = albums[index];
+          return ListTile(
+            leading: album['picUrl'] != null
+                ? Image.network(
+                    '${album['picUrl']}?param=50y50',
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    width: 50,
+                    height: 50,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.album),
+                  ),
+            title: Text(album['name'] ?? '未知专辑'),
+            subtitle: Text(
+              '${album['artist']?['name'] ?? '未知歌手'} · ${album['size'] ?? 0}首',
+            ),
+            onTap: () {
+              AppLogger.info('点击专辑: ${album['name']}');
+              // TODO: 跳转到专辑页面
+              Navigator.pushNamed(
+                context,
+                '/album_detail',
+                arguments: {
+                  'albumId': album['id']?.toString() ?? '',
+                  'albumName': album['name'],
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -859,46 +976,63 @@ class _SearchResultPageState extends State<SearchResultPage>
       return const Center(child: Text('暂无结果'));
     }
 
-    return ListView.builder(
-      itemCount: playlists.length + 1,
-      itemBuilder: (context, index) {
-        if (index == playlists.length) {
-          return _buildLoadMoreButton(1000);
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification scrollInfo) {
+        // 检查是否滚动到底部
+        if (!_isLoading[1000]! &&
+            scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+          final currentCount = _searchResults[1000]?.length ?? 0;
+          final totalCount = _searchCounts[1000] ?? 0;
+          if (currentCount < totalCount) {
+            _loadSearchResults(1000, loadMore: true);
+          }
         }
-
-        final playlist = playlists[index];
-        return ListTile(
-          leading: playlist['coverImgUrl'] != null
-              ? Image.network(
-                  '${playlist['coverImgUrl']}?param=50y50',
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                )
-              : Container(
-                  width: 50,
-                  height: 50,
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.queue_music),
-                ),
-          title: Text(playlist['name'] ?? '未知歌单'),
-          subtitle: Text(
-            '${playlist['creator']?['nickname'] ?? '未知用户'} · ${playlist['trackCount'] ?? 0}首',
-          ),
-          onTap: () {
-            AppLogger.info('点击歌单: ${playlist['name']}');
-            // TODO: 跳转到歌单页面
-            Navigator.pushNamed(
-              context,
-              '/playlist_detail',
-              arguments: {
-                'playlistId': playlist['id']?.toString() ?? '',
-                'playlistName': playlist['name'],
-              },
-            );
-          },
-        );
+        return false;
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
+        itemCount:
+            playlists.length + (_shouldShowLoadingIndicator(1000) ? 1 : 0),
+        itemBuilder: (context, index) {
+          // 如果是最后一项且正在加载，显示加载指示器
+          if (index == playlists.length) {
+            return _buildLoadingIndicator(1000);
+          }
+
+          final playlist = playlists[index];
+          return ListTile(
+            leading: playlist['coverImgUrl'] != null
+                ? Image.network(
+                    '${playlist['coverImgUrl']}?param=50y50',
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    width: 50,
+                    height: 50,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.queue_music),
+                  ),
+            title: Text(playlist['name'] ?? '未知歌单'),
+            subtitle: Text(
+              '${playlist['creator']?['nickname'] ?? '未知用户'} · ${playlist['trackCount'] ?? 0}首',
+            ),
+            onTap: () {
+              AppLogger.info('点击歌单: ${playlist['name']}');
+              // TODO: 跳转到歌单页面
+              Navigator.pushNamed(
+                context,
+                '/playlist_detail',
+                arguments: {
+                  'playlistId': playlist['id']?.toString() ?? '',
+                  'playlistName': playlist['name'],
+                },
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -908,56 +1042,46 @@ class _SearchResultPageState extends State<SearchResultPage>
       return const Center(child: Text('暂无结果'));
     }
 
-    return ListView.builder(
-      itemCount: users.length + 1,
-      itemBuilder: (context, index) {
-        if (index == users.length) {
-          return _buildLoadMoreButton(1002);
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification scrollInfo) {
+        // 检查是否滚动到底部
+        if (!_isLoading[1002]! &&
+            scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+          final currentCount = _searchResults[1002]?.length ?? 0;
+          final totalCount = _searchCounts[1002] ?? 0;
+          if (currentCount < totalCount) {
+            _loadSearchResults(1002, loadMore: true);
+          }
         }
-
-        final user = users[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: user['avatarUrl'] != null
-                ? NetworkImage('${user['avatarUrl']}?param=50y50')
-                : null,
-            child: user['avatarUrl'] == null
-                ? const Icon(Icons.person)
-                : null,
-          ),
-          title: Text(user['nickname'] ?? '未知用户'),
-          subtitle: Text(user['signature'] ?? ''),
-          onTap: () {
-            AppLogger.info('点击用户: ${user['nickname']}');
-            // TODO: 跳转到用户页面
-          },
-        );
+        return false;
       },
-    );
-  }
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
+        itemCount: users.length + (_shouldShowLoadingIndicator(1002) ? 1 : 0),
+        itemBuilder: (context, index) {
+          // 如果是最后一项且正在加载，显示加载指示器
+          if (index == users.length) {
+            return _buildLoadingIndicator(1002);
+          }
 
-  /// 构建加载更多按钮
-  Widget _buildLoadMoreButton(int type) {
-    final isLoading = _isLoading[type] == true;
-    final currentCount = _searchResults[type]?.length ?? 0;
-    final totalCount = _searchCounts[type] ?? 0;
-    
-    if (currentCount >= totalCount) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: Text('已加载全部内容')),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: isLoading
-            ? const CircularProgressIndicator()
-            : ElevatedButton(
-                onPressed: () => _loadSearchResults(type, loadMore: true),
-                child: const Text('加载更多'),
-              ),
+          final user = users[index];
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundImage: user['avatarUrl'] != null
+                  ? NetworkImage('${user['avatarUrl']}?param=50y50')
+                  : null,
+              child: user['avatarUrl'] == null
+                  ? const Icon(Icons.person)
+                  : null,
+            ),
+            title: Text(user['nickname'] ?? '未知用户'),
+            subtitle: Text(user['signature'] ?? ''),
+            onTap: () {
+              AppLogger.info('点击用户: ${user['nickname']}');
+              // TODO: 跳转到用户页面
+            },
+          );
+        },
       ),
     );
   }
@@ -969,7 +1093,7 @@ class _SearchResultPageState extends State<SearchResultPage>
     }
 
     final results = _searchResults[type] ?? [];
-    
+
     switch (type) {
       case 1: // 歌曲
         return _buildSongList(results);
@@ -1026,7 +1150,11 @@ class _SearchResultPageState extends State<SearchResultPage>
                 if (currentTrack == null) {
                   return const SizedBox.shrink();
                 }
-                return _buildFloatingPlayerBar(context, playerService, currentTrack);
+                return _buildFloatingPlayerBar(
+                  context,
+                  playerService,
+                  currentTrack,
+                );
               },
             ),
           ),
@@ -1036,7 +1164,11 @@ class _SearchResultPageState extends State<SearchResultPage>
   }
 
   /// 构建浮动播放控件
-  Widget _buildFloatingPlayerBar(BuildContext context, PlayerService playerService, Track currentTrack) {
+  Widget _buildFloatingPlayerBar(
+    BuildContext context,
+    PlayerService playerService,
+    Track currentTrack,
+  ) {
     return Container(
       height: 60,
       decoration: BoxDecoration(
@@ -1077,20 +1209,28 @@ class _SearchResultPageState extends State<SearchResultPage>
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
                                   return Container(
-                                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.surfaceContainerHighest,
                                     child: Icon(
                                       Icons.music_note,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       size: 20,
                                     ),
                                   );
                                 },
                               )
                             : Container(
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainerHighest,
                                 child: Icon(
                                   Icons.music_note,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   size: 20,
                                 ),
                               ),
@@ -1105,7 +1245,8 @@ class _SearchResultPageState extends State<SearchResultPage>
                         children: [
                           Text(
                             currentTrack.name,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
                                   fontWeight: FontWeight.w500,
                                   fontSize: 13,
                                 ),
@@ -1115,8 +1256,11 @@ class _SearchResultPageState extends State<SearchResultPage>
                           if (currentTrack.artists.isNotEmpty)
                             Text(
                               '${currentTrack.artists.map((artist) => artist.name).join(', ')} · ${currentTrack.album.name}',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                                     fontSize: 11,
                                   ),
                               maxLines: 1,
@@ -1151,7 +1295,9 @@ class _SearchResultPageState extends State<SearchResultPage>
                         width: 28,
                         height: 28,
                         child: Icon(
-                          playerService.isPlaying ? Icons.pause : Icons.play_arrow,
+                          playerService.isPlaying
+                              ? Icons.pause
+                              : Icons.play_arrow,
                           color: Theme.of(context).colorScheme.primary,
                           size: 22,
                         ),
@@ -1162,7 +1308,8 @@ class _SearchResultPageState extends State<SearchResultPage>
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
-                      onTap: () => _showPlaylist(context, playerService, currentTrack),
+                      onTap: () =>
+                          _showPlaylist(context, playerService, currentTrack),
                       child: SizedBox(
                         width: 28,
                         height: 28,
@@ -1208,7 +1355,11 @@ class _SearchResultPageState extends State<SearchResultPage>
   }
 
   /// 显示播放列表
-  void _showPlaylist(BuildContext context, PlayerService playerService, Track? currentTrack) {
+  void _showPlaylist(
+    BuildContext context,
+    PlayerService playerService,
+    Track? currentTrack,
+  ) {
     PlaylistSheet.show(context, currentTrack);
   }
 }

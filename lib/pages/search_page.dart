@@ -766,8 +766,9 @@ class _SearchPageState extends State<SearchPage> {
             child: Text(
               '搜索',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimary,
-                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
               ),
             ),
           ),

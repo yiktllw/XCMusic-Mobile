@@ -62,8 +62,7 @@ class SearchBarConfig {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(borderRadius),
         borderSide: BorderSide(
-          color: Theme.of(context).colorScheme.primary,
-          width: 2,
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
         ),
       ),
       contentPadding: contentPadding,
