@@ -17,7 +17,7 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _albumRotationController;
   late Animation<double> _albumRotationAnimation;
 
@@ -25,6 +25,7 @@ class _PlayerPageState extends State<PlayerPage>
   void initState() {
     super.initState();
     _initAnimations();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   void _initAnimations() {
@@ -41,8 +42,28 @@ class _PlayerPageState extends State<PlayerPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _albumRotationController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // 当应用进入后台时暂停动画，回到前台时根据播放状态恢复
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // 应用进入后台，暂停动画
+      if (_albumRotationController.isAnimating) {
+        _albumRotationController.stop();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      // 应用回到前台，根据播放状态决定是否恢复动画
+      final playerService = Provider.of<PlayerService>(context, listen: false);
+      if (playerService.isPlaying && !_albumRotationController.isAnimating) {
+        _albumRotationController.repeat();
+      }
+    }
   }
 
   @override
