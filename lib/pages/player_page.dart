@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/playlist.dart';
 import '../services/player_service.dart';
+import '../services/likelist_service.dart';
 import '../widgets/playlist_sheet.dart';
+import '../widgets/scrolling_text.dart';
+import '../widgets/song_detail_panel.dart';
 
 /// 播放界面
 class PlayerPage extends StatefulWidget {
@@ -88,35 +91,40 @@ class _PlayerPageState extends State<PlayerPage>
   Widget _buildPlayerContent(BuildContext context, PlayerService playerService, Track track) {
     return Column(
       children: [
+        // 专辑封面区域 - 在剩余空间中居中
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(32.0, 20.0, 32.0, 32.0),
-            child: Column(
-              children: [
-                // 专辑封面
-                Expanded(
-                  flex: 3,
-                  child: Center(
-                    child: _buildAlbumCover(track),
-                  ),
-                ),
-                
-                const SizedBox(height: 40),
-                
-                // 歌曲信息
-                _buildSongInfo(track),
-                
-                const SizedBox(height: 24),
-                
-                // 进度条
-                _buildProgressBar(playerService),
-                
-                const SizedBox(height: 32),
-                
-                // 播放控件
-                _buildPlayControls(playerService),
-              ],
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: _buildAlbumCover(track),
             ),
+          ),
+        ),
+        
+        // 底部控制区域 - 固定在屏幕下方
+        Container(
+          padding: const EdgeInsets.fromLTRB(0, 16.0, 0, 24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 歌曲信息
+              _buildSongInfo(track),
+              
+              const SizedBox(height: 16),
+              
+              // 进度条
+              _buildProgressBar(playerService),
+              
+              const SizedBox(height: 16),
+              
+              // 播放控件
+              _buildPlayControls(playerService),
+              
+              const SizedBox(height: 8),
+              
+              // 额外控制栏（喜欢、评论、收藏、下载、详情按钮）
+              _buildAdditionalControls(context, track),
+            ],
           ),
         ),
       ],
@@ -165,38 +173,29 @@ class _PlayerPageState extends State<PlayerPage>
   }
 
   Widget _buildSongInfo(Track track) {
-    return Column(
-      children: [
-        Text(
-          track.name,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          track.artistNames,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          track.album.name,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 30),
+      child: Column(
+        children: [
+          // 歌曲名（一行，可滚动）
+          ScrollingText(
+            text: track.name,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          // 歌手和专辑在同一行（可滚动）
+          ScrollingText(
+            text: '${track.artistNames} · ${track.album.name}',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
@@ -208,101 +207,114 @@ class _PlayerPageState extends State<PlayerPage>
           .clamp(0.0, 1.0);
     }
     
-    return Column(
-      children: [
-        Slider(
-          value: progress,
-          onChanged: (value) {
-            final newPosition = Duration(
-              milliseconds: (value * playerService.duration.inMilliseconds).round(),
-            );
-            playerService.seek(newPosition);
-          },
-          activeColor: Theme.of(context).colorScheme.primary,
-          inactiveColor: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _formatDuration(playerService.position),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-              ),
-              Text(
-                _formatDuration(playerService.duration),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        children: [
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 4.0,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+            ),
+            child: Slider(
+              value: progress,
+              onChanged: (value) {
+                final newPosition = Duration(
+                  milliseconds: (value * playerService.duration.inMilliseconds).round(),
+                );
+                playerService.seek(newPosition);
+              },
+              activeColor: Theme.of(context).colorScheme.primary,
+              inactiveColor: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+            ),
           ),
-        ),
-      ],
+          // 时间显示与滑块左右边缘对齐
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24), // 使用24px来匹配Slider的内部padding
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _formatDuration(playerService.position),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                ),
+                Text(
+                  _formatDuration(playerService.duration),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildPlayControls(PlayerService playerService) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        // 播放模式
-        IconButton(
-          icon: Icon(_getPlayModeIcon(playerService.playMode)),
-          iconSize: 28,
-          onPressed: () => _togglePlayMode(playerService),
-          tooltip: _getPlayModeTooltip(playerService.playMode),
-        ),
-        
-        // 上一首
-        IconButton(
-          icon: const Icon(Icons.skip_previous),
-          iconSize: 36,
-          onPressed: playerService.hasPrevious ? () => playerService.previous() : null,
-        ),
-        
-        // 播放/暂停
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Theme.of(context).colorScheme.primary,
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // 播放模式
+          IconButton(
+            icon: Icon(_getPlayModeIcon(playerService.playMode)),
+            iconSize: 28,
+            onPressed: () => _togglePlayMode(playerService),
+            tooltip: _getPlayModeTooltip(playerService.playMode),
           ),
-          child: IconButton(
-            icon: Icon(
-              playerService.isPlaying ? Icons.pause : Icons.play_arrow,
-              color: Theme.of(context).colorScheme.onPrimary,
-            ),
+          
+          // 上一首
+          IconButton(
+            icon: const Icon(Icons.skip_previous),
             iconSize: 36,
-            onPressed: () => playerService.playPause(),
+            onPressed: playerService.hasPrevious ? () => playerService.previous() : null,
           ),
-        ),
-        
-        // 下一首
-        IconButton(
-          icon: const Icon(Icons.skip_next),
-          iconSize: 36,
-          onPressed: playerService.hasNext ? () => playerService.next() : null,
-        ),
-        
-        // 播放列表
-        IconButton(
-          icon: const Icon(Icons.queue_music),
-          iconSize: 28,
-          onPressed: () => _showPlaylist(context),
-        ),
-      ],
+          
+          // 播放/暂停
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Theme.of(context).colorScheme.primary,
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: IconButton(
+              icon: Icon(
+                playerService.isPlaying ? Icons.pause : Icons.play_arrow,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+              iconSize: 36,
+              onPressed: () => playerService.playPause(),
+            ),
+          ),
+          
+          // 下一首
+          IconButton(
+            icon: const Icon(Icons.skip_next),
+            iconSize: 36,
+            onPressed: playerService.hasNext ? () => playerService.next() : null,
+          ),
+          
+          // 播放列表
+          IconButton(
+            icon: const Icon(Icons.queue_music),
+            iconSize: 28,
+            onPressed: () => _showPlaylist(context),
+          ),
+        ],
+      ),
     );
   }
 
@@ -418,5 +430,110 @@ class _PlayerPageState extends State<PlayerPage>
     final minutes = safeDuration.inMinutes;
     final seconds = safeDuration.inSeconds % 60;
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  /// 构建额外控制栏（喜欢、评论、收藏、下载、详情按钮）
+  Widget _buildAdditionalControls(BuildContext context, Track track) {
+    return Container(
+      height: 56,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // 喜欢按钮
+          _buildHeartButton(track),
+          
+          // 评论按钮
+          _buildCommentButton(context, track),
+          
+          // 收藏按钮
+          _buildCollectButton(context, track),
+          
+          // 下载按钮
+          _buildDownloadButton(context, track),
+          
+          // 歌曲详情按钮
+          _buildSongDetailButton(context, track),
+        ],
+      ),
+    );
+  }
+
+  /// 构建喜欢按钮
+  Widget _buildHeartButton(Track track) {
+    final likelistService = LikelistService();
+    final isLiked = likelistService.isLikedSong(track.id);
+    
+    return IconButton(
+      icon: Icon(
+        isLiked ? Icons.favorite : Icons.favorite_border,
+        color: isLiked ? Colors.red : null, // 未喜欢时使用默认颜色
+        size: 28,
+      ),
+      onPressed: () {
+        // 功能暂不实装，只是显示当前状态
+        // TODO: 实现喜欢/取消喜欢功能
+      },
+      tooltip: isLiked ? '已喜欢' : '喜欢',
+    );
+  }
+
+  /// 构建歌曲详情按钮
+  Widget _buildSongDetailButton(BuildContext context, Track track) {
+    return IconButton(
+      icon: Icon(
+        Icons.info_outline,
+        size: 28,
+      ),
+      onPressed: () {
+        SongDetailPanel.show(
+          context: context,
+          track: track,
+          index: 0, // 播放器页面中当前歌曲索引设为0
+        );
+      },
+      tooltip: '歌曲详情',
+    );
+  }
+
+  /// 构建评论按钮
+  Widget _buildCommentButton(BuildContext context, Track track) {
+    return IconButton(
+      icon: Icon(
+        Icons.comment_outlined,
+        size: 28,
+      ),
+      onPressed: () {
+        // TODO: 实现评论功能
+      },
+      tooltip: '评论',
+    );
+  }
+
+  /// 构建收藏按钮
+  Widget _buildCollectButton(BuildContext context, Track track) {
+    return IconButton(
+      icon: Icon(
+        Icons.playlist_add,
+        size: 28,
+      ),
+      onPressed: () {
+        // TODO: 实现收藏到歌单功能
+      },
+      tooltip: '收藏',
+    );
+  }
+
+  /// 构建下载按钮
+  Widget _buildDownloadButton(BuildContext context, Track track) {
+    return IconButton(
+      icon: Icon(
+        Icons.download_outlined,
+        size: 28,
+      ),
+      onPressed: () {
+        // TODO: 实现下载功能
+      },
+      tooltip: '下载',
+    );
   }
 }

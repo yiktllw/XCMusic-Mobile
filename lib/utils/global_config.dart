@@ -51,6 +51,9 @@ class GlobalConfig {
   static const String playlistKey = 'current_playlist';
   static const String currentSongKey = 'current_song';
   static const String playModeKey = 'play_mode';
+  
+  /// 用户喜欢列表相关
+  static const String userLikelistKey = 'user_likelist';
 
   // ==================== 用户登录相关方法 ====================
 
@@ -105,6 +108,82 @@ class GlobalConfig {
     await _configManager.remove(userCookieKey);
     await _configManager.remove(userInfoKey);
     await _configManager.remove(isLoggedInKey);
+    await _configManager.remove(userLikelistKey);
+  }
+
+  // ==================== 用户喜欢列表相关方法 ====================
+
+  /// 设置用户喜欢列表
+  Future<void> setUserLikelist(List<int> songIds) async {
+    _ensureInitialized();
+    try {
+      // 确保正确地保存为JSON数组格式
+      final jsonString = jsonEncode(songIds);
+      await _configManager.setString(userLikelistKey, jsonString);
+      AppLogger.info('[CONFIG] 喜欢列表已保存，共${songIds.length}首歌曲');
+    } catch (e) {
+      AppLogger.error('[CONFIG] 保存喜欢列表失败: $e');
+      rethrow;
+    }
+  }
+
+  /// 获取用户喜欢列表
+  List<int> getUserLikelist() {
+    _ensureInitialized();
+    final likelistStr = _configManager.getString(userLikelistKey);
+    if (likelistStr != null && likelistStr.isNotEmpty) {
+      try {
+        // 首先尝试作为JSON数组解析
+        final List<dynamic> decoded = jsonDecode(likelistStr);
+        return decoded.cast<int>();
+      } catch (e) {
+        AppLogger.warning('[CONFIG] JSON解析失败，尝试按逗号分隔解析: $e');
+        try {
+          // 如果JSON解析失败，尝试按逗号分隔的字符串解析
+          if (likelistStr.startsWith('[') && likelistStr.endsWith(']')) {
+            // 移除方括号
+            final cleanStr = likelistStr.substring(1, likelistStr.length - 1);
+            if (cleanStr.isEmpty) return [];
+            
+            return cleanStr
+                .split(',')
+                .where((id) => id.trim().isNotEmpty)
+                .map((id) => int.parse(id.trim()))
+                .toList();
+          } else {
+            // 直接按逗号分隔解析
+            return likelistStr
+                .split(',')
+                .where((id) => id.trim().isNotEmpty)
+                .map((id) => int.parse(id.trim()))
+                .toList();
+          }
+        } catch (parseError) {
+          AppLogger.error('[CONFIG] 解析喜欢列表失败: $parseError');
+          AppLogger.error('[CONFIG] 原始数据: ${likelistStr.substring(0, likelistStr.length > 100 ? 100 : likelistStr.length)}...');
+          return [];
+        }
+      }
+    }
+    return [];
+  }
+
+  /// 检查歌曲是否在喜欢列表中
+  bool isLikedSong(int songId) {
+    final likelist = getUserLikelist();
+    return likelist.contains(songId);
+  }
+
+  /// 清理并重置喜欢列表数据
+  /// 当数据格式损坏时使用此方法
+  Future<void> cleanupLikelistData() async {
+    _ensureInitialized();
+    try {
+      await _configManager.remove(userLikelistKey);
+      AppLogger.info('[CONFIG] 喜欢列表数据已清理');
+    } catch (e) {
+      AppLogger.error('[CONFIG] 清理喜欢列表数据失败: $e');
+    }
   }
 
   // ==================== 应用设置相关方法 ====================

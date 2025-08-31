@@ -5,6 +5,7 @@ import 'package:netease_cloud_music_api/netease_cloud_music_api.dart';
 import 'services/api_manager.dart';
 import 'services/player_service.dart';
 import 'services/theme_service.dart';
+import 'services/likelist_service.dart';
 import 'models/playlist.dart';
 import 'pages/debug_page.dart';
 import 'pages/home_page.dart';
@@ -15,6 +16,7 @@ import 'pages/album_detail_page.dart';
 import 'widgets/bottom_player_bar.dart';
 import 'widgets/common_drawer.dart';
 import 'widgets/playlist_sheet.dart';
+import 'widgets/scrolling_text.dart';
 import 'utils/global_config.dart';
 import 'utils/app_logger.dart';
 
@@ -116,6 +118,14 @@ class _XCMusicAppState extends State<XCMusicApp> {
           AppLogger.warning('播放器初始化超时，跳过状态恢复');
         },
       );
+      
+      // 初始化喜欢列表服务
+      try {
+        await LikelistService().initializeLikelistOnStartup();
+        AppLogger.info('喜欢列表服务初始化完成');
+      } catch (e) {
+        AppLogger.error('喜欢列表服务初始化失败', e);
+      }
       
       AppLogger.info('服务初始化完成');
     } catch (e) {
@@ -647,8 +657,8 @@ class _FloatingPlayerBarState extends State<FloatingPlayerBar>
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    track?.name ?? '暂无播放',
+                  ScrollingText(
+                    text: track?.name ?? '暂无播放',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                           fontSize: 13,
@@ -656,16 +666,14 @@ class _FloatingPlayerBarState extends State<FloatingPlayerBar>
                               ? Theme.of(context).colorScheme.onSurfaceVariant
                               : null,
                         ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                   if (track?.artists.isNotEmpty == true)
-                    Text(
-                      track!.artists.map((artist) => artist.name).join(', '),
+                    ScrollingText(
+                      text: '${track!.artists.map((artist) => artist.name).join(', ')} · ${track.album.name}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 11,
                           ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                 ],
               ),
