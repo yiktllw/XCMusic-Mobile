@@ -31,6 +31,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
+  final MixedVirtualSongListController _songListController = MixedVirtualSongListController();
 
   @override
   void initState() {
@@ -261,19 +262,32 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                         ),
                       ),
                     const SizedBox(height: 4),
-                    if (publishTime > 0)
-                      Text(
-                        _formatPublishTime(publishTime),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[500],
+                    // 日期和歌曲数量在同一行
+                    Row(
+                      children: [
+                        if (publishTime > 0) ...[
+                          Text(
+                            _formatPublishTime(publishTime),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '·',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          '${album['size'] ?? 0} 首歌曲',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[500],
+                          ),
                         ),
-                      ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${album['size'] ?? 0} 首歌曲',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[500],
-                      ),
+                      ],
                     ),
                   ],
                 ),
@@ -355,7 +369,20 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.albumName ?? '专辑详情'),
+        title: const Align(
+          alignment: Alignment.centerLeft,
+          child: Text('专辑'),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _showSearchDialog,
+            tooltip: '搜索歌曲',
+          ),
+        ],
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -391,6 +418,9 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                   onTrackTap: _playMixedTrack,
                   onPlayTap: _playMixedTrack,
                   onMoreTap: _onMoreTap,
+                  controller: _songListController,
+                  enableSearch: true,
+                  showSearchButton: false,
                   headerBuilder: () => Column(
                     children: [
                       _buildAlbumHeader(),
@@ -420,10 +450,14 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                     ],
                   ),
                   headerHeight: _calculateHeaderHeight(),
-                  enableSearch: true,
                   searchHint: '搜索内容',
                 ),
     );
+  }
+
+  /// 显示搜索对话框
+  void _showSearchDialog() {
+    _songListController.showSearch();
   }
 
   /// 计算头部高度

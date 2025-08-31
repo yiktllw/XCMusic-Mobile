@@ -14,12 +14,14 @@ import 'pages/profile_page.dart';
 import 'pages/player_page.dart';
 import 'pages/playlist_detail_page.dart';
 import 'pages/album_detail_page.dart';
+import 'pages/search_page.dart';
 import 'widgets/bottom_player_bar.dart';
 import 'widgets/common_drawer.dart';
 import 'widgets/playlist_sheet.dart';
 import 'widgets/scrolling_text.dart';
 import 'utils/global_config.dart';
 import 'utils/app_logger.dart';
+import 'config/search_bar_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -323,8 +325,33 @@ class _HomePageState extends State<HomePage> {
     if (_currentIndex == 0) {
       return Scaffold(
         appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: const Text('XCMusic'),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          elevation: 0,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          title: GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const SearchPage()),
+              );
+            },
+            child: Container(
+              height: SearchBarConfig.height,
+              padding: SearchBarConfig.horizontalPadding,
+              decoration: SearchBarConfig.getContainerDecoration(context),
+              child: Row(
+                children: [
+                  SearchBarConfig.getSearchIcon(context),
+                  SizedBox(width: SearchBarConfig.iconTextSpacing),
+                  Expanded(
+                    child: Text(
+                      '搜索音乐、歌手、专辑',
+                      style: SearchBarConfig.getHintTextStyle(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           leading: Builder(
             builder: (context) => IconButton(
               icon: const Icon(Icons.menu),
@@ -379,7 +406,9 @@ class _HomePageState extends State<HomePage> {
     // 其他页面保持原有的AppBar (这部分代码现在不会被执行，但保留以防后续添加更多页面)
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         title: Text(_currentIndex == 0 ? 'XCMusic' : '我的'),
         leading: Builder(
           builder: (context) => IconButton(

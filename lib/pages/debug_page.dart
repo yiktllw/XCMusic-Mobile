@@ -22,7 +22,9 @@ class _DebugPageState extends State<DebugPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('调试信息'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

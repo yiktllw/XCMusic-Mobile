@@ -4,6 +4,29 @@ import '../models/playlist.dart';
 import '../services/player_service.dart';
 import '../config/song_list_layout.dart';
 
+/// 混合虚拟滚动列表控制器
+class MixedVirtualSongListController {
+  _MixedVirtualSongListState? _state;
+
+  void _attach(_MixedVirtualSongListState state) {
+    _state = state;
+  }
+
+  void _detach() {
+    _state = null;
+  }
+
+  /// 显示搜索框
+  void showSearch() {
+    _state?.showSearch();
+  }
+
+  /// 定位到指定歌曲
+  void scrollToTrack(int trackId) {
+    _state?.scrollToTrack(trackId);
+  }
+}
+
 /// 混合内容项类型
 enum MixedItemType {
   track,       // 普通歌曲
@@ -95,6 +118,9 @@ class MixedVirtualSongList extends StatefulWidget {
   /// 是否启用搜索
   final bool enableSearch;
   
+  /// 是否显示内置搜索按钮
+  final bool showSearchButton;
+  
   /// 搜索提示文本
   final String searchHint;
   
@@ -103,6 +129,9 @@ class MixedVirtualSongList extends StatefulWidget {
   
   /// 头部高度
   final double headerHeight;
+
+  /// 控制器
+  final MixedVirtualSongListController? controller;
 
   const MixedVirtualSongList({
     super.key,
@@ -114,9 +143,11 @@ class MixedVirtualSongList extends StatefulWidget {
     this.showIndex = true,
     this.itemHeight = SongListLayoutConfig.itemHeight,
     this.enableSearch = false,
+    this.showSearchButton = true,
     this.searchHint = '搜索歌曲',
     this.headerBuilder,
     this.headerHeight = 0,
+    this.controller,
   });
 
   @override
@@ -134,6 +165,7 @@ class _MixedVirtualSongListState extends State<MixedVirtualSongList> {
     super.initState();
     _filteredItems = widget.items;
     _searchController.addListener(_onSearchChanged);
+    widget.controller?._attach(this);
   }
 
   @override
@@ -147,6 +179,7 @@ class _MixedVirtualSongListState extends State<MixedVirtualSongList> {
 
   @override
   void dispose() {
+    widget.controller?._detach();
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -188,6 +221,13 @@ class _MixedVirtualSongListState extends State<MixedVirtualSongList> {
         _filteredItems = widget.items;
       }
     });
+  }
+
+  /// 显示搜索框（公共方法）
+  void showSearch() {
+    if (!_isSearchVisible) {
+      _toggleSearch();
+    }
   }
 
   /// 定位到指定歌曲ID
@@ -705,11 +745,12 @@ class _MixedVirtualSongListState extends State<MixedVirtualSongList> {
                             ),
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.search),
-                          onPressed: _toggleSearch,
-                          tooltip: '搜索',
-                        ),
+                        if (widget.showSearchButton)
+                          IconButton(
+                            icon: const Icon(Icons.search),
+                            onPressed: _toggleSearch,
+                            tooltip: '搜索',
+                          ),
                       ],
                     ),
                   ),

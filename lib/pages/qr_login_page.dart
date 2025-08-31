@@ -222,7 +222,9 @@ class _QrLoginPageState extends State<QrLoginPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('二维码登录'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

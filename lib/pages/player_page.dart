@@ -20,12 +20,20 @@ class _PlayerPageState extends State<PlayerPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _albumRotationController;
   late Animation<double> _albumRotationAnimation;
+  double? _statusBarHeight; // 缓存状态栏高度
 
   @override
   void initState() {
     super.initState();
     _initAnimations();
     WidgetsBinding.instance.addObserver(this);
+    
+    // 在下一帧时计算状态栏高度（确保MediaQuery可用）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _getStatusBarHeight(context);
+      }
+    });
   }
 
   void _initAnimations() {
@@ -66,13 +74,19 @@ class _PlayerPageState extends State<PlayerPage>
     }
   }
 
-  /// 获取状态栏高度
+  /// 获取状态栏高度（带缓存）
   double _getStatusBarHeight(BuildContext context) {
+    // 如果已经缓存，直接返回
+    if (_statusBarHeight != null) {
+      return _statusBarHeight!;
+    }
+
     // 首先尝试从 MediaQuery 获取
     final mediaQueryPadding = MediaQuery.of(context).padding.top;
     if (mediaQueryPadding > 0) {
       AppLogger.info('MediaQuery padding: $mediaQueryPadding');
-      return mediaQueryPadding;
+      _statusBarHeight = mediaQueryPadding;
+      return _statusBarHeight!;
     }
     
     // 如果 MediaQuery 返回0，使用 View API
@@ -80,12 +94,14 @@ class _PlayerPageState extends State<PlayerPage>
     final statusBarHeight = view.padding.top / view.devicePixelRatio;
     if (statusBarHeight > 0) {
       AppLogger.info('View padding: $statusBarHeight');
-      return statusBarHeight;
+      _statusBarHeight = statusBarHeight;
+      return _statusBarHeight!;
     }
     
     // 最后的备用方案：使用固定高度
     AppLogger.warning('无法获取状态栏高度，使用默认值');
-    return 44.0; // iOS刘海屏的标准状态栏高度
+    _statusBarHeight = 44.0; // iOS刘海屏的标准状态栏高度
+    return _statusBarHeight!;
   }
 
   @override

@@ -25,8 +25,7 @@ class PlaylistDetailPage extends StatefulWidget {
   State<PlaylistDetailPage> createState() => _PlaylistDetailPageState();
 }
 
-class _PlaylistDetailPageState extends State<PlaylistDetailPage>
-    with TickerProviderStateMixin {
+class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   PlaylistDetail? _playlist;
   List<Track> _tracks = [];
   bool _isLoading = true;
@@ -34,45 +33,23 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
   String? _error;
   int? _currentPlayingId;
   
-  // 动画控制器
-  late AnimationController _headerAnimationController;
-  late Animation<double> _headerAnimation;
-  
   // 滚动控制器
   final ScrollController _scrollController = ScrollController();
   final VirtualSongListController _songListController = VirtualSongListController();
   
   // UI状态
-  final double _expandedHeight = 300.0;
+  final double _expandedHeight = 220.0;
 
   @override
   void initState() {
     super.initState();
-    _initAnimations();
     _loadPlaylistDetail();
   }
 
   @override
   void dispose() {
-    _headerAnimationController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  /// 初始化动画
-  void _initAnimations() {
-    _headerAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    
-    _headerAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _headerAnimationController,
-      curve: Curves.easeInOut,
-    ));
   }
 
   /// 加载歌单详情
@@ -297,18 +274,9 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
   Widget _buildContent() {
     return Scaffold(
       appBar: AppBar(
-        title: AnimatedBuilder(
-          animation: _headerAnimation,
-          builder: (context, child) {
-            return Opacity(
-              opacity: _headerAnimation.value,
-              child: Text(
-                _playlist?.name ?? widget.playlistName ?? '歌单',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            );
-          },
+        title: const Align(
+          alignment: Alignment.centerLeft,
+          child: Text('歌单'),
         ),
         actions: [
           IconButton(
@@ -317,10 +285,10 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
             tooltip: '搜索歌曲',
           ),
         ],
-        backgroundColor: Colors.transparent,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
       ),
-      extendBodyBehindAppBar: true,
       body: VirtualSongListWithController(
         controller: _songListController,
         tracks: _tracks,
@@ -341,33 +309,9 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
 
     return Container(
       height: _expandedHeight,
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: NetworkImage('${_playlist!.coverImgUrl}?param=400y400'),
-          fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(
-            Colors.black.withValues(alpha: 0.6),
-            BlendMode.darken,
-          ),
-        ),
-      ),
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Container(
-        padding: EdgeInsets.only(
-          top: kToolbarHeight + MediaQuery.of(context).padding.top,
-          left: 16,
-          right: 16,
-          bottom: 16,
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.transparent,
-              Colors.black.withValues(alpha: 0.7),
-            ],
-          ),
-        ),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Row(
@@ -408,7 +352,6 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
                         _playlist!.name,
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
                             ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -444,7 +387,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
                             child: Text(
                               _playlist!.creator.nickname,
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -455,12 +398,42 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
                       
                       const SizedBox(height: 8),
                       
-                      // 统计信息
-                      Text(
-                        '${_playlist!.trackCount}首歌曲 • ${_formatPlayCount(_playlist!.playCount)}次播放',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.white,
+                      // 创建时间和歌曲数量在同一行
+                      Row(
+                        children: [
+                          if (_playlist!.createTime > 0) ...[
+                            Text(
+                              _formatCreateTime(_playlist!.createTime),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
                             ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '·',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Text(
+                            '${_playlist!.trackCount} 首歌曲',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 4),
+                      
+                      // 播放次数
+                      Text(
+                        '${_formatPlayCount(_playlist!.playCount)} 次播放',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                       ),
                     ],
                   ),
@@ -470,19 +443,34 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
             
             const SizedBox(height: 20),
             
-            // 播放全部按钮
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _playAll,
-                icon: const Icon(Icons.play_arrow),
-                label: Text('播放全部 (${_tracks.length})'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            // 播放按钮和操作按钮
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _playAll,
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text('播放全部'),
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                IconButton(
+                  onPressed: () {
+                    // TODO: 收藏歌单
+                    TopBanner.showInfo(context, '收藏功能待实现');
+                  },
+                  icon: const Icon(Icons.favorite_border),
+                ),
+                IconButton(
+                  onPressed: () {
+                    // TODO: 分享歌单
+                    TopBanner.showInfo(context, '分享功能待实现');
+                  },
+                  icon: const Icon(Icons.share),
+                ),
+              ],
             ),
           ],
         ),
@@ -500,6 +488,13 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage>
     } else {
       return '${(count / 100000000).toStringAsFixed(1)}亿';
     }
+  }
+
+  /// 格式化创建时间
+  String _formatCreateTime(int timestamp) {
+    if (timestamp <= 0) return '';
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }
 
