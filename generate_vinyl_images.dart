@@ -1,11 +1,14 @@
 #!/usr/bin/env dart
 
+// ignore: dangling_library_doc_comments
 /// 黑胶唱片PNG/WebP生成器
 /// 使用 image 包生成多分辨率的PNG和WebP格式图片
 /// 
 /// 使用方式:
 /// dart pub add image
 /// dart run generate_vinyl_images.dart
+
+// ignore_for_file: avoid_print
 
 import 'dart:io';
 import 'dart:math' as math;

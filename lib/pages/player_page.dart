@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'dart:ui' as ui;
 import 'package:provider/provider.dart';
 import 'package:xcmusic_mobile/utils/app_logger.dart';
 import '../models/playlist.dart';
@@ -132,12 +130,6 @@ class _PlayerPageState extends State<PlayerPage>
                       icon: const Icon(Icons.keyboard_arrow_down),
                       iconSize: 28,
                       onPressed: () => Navigator.pop(context),
-                    ),
-                    const Spacer(),
-                    // 更多选项按钮
-                    IconButton(
-                      icon: const Icon(Icons.more_vert),
-                      onPressed: () => _showMoreOptions(context, playerService),
                     ),
                   ],
                 ),
@@ -502,43 +494,7 @@ class _PlayerPageState extends State<PlayerPage>
     PlaylistSheet.show(context, playerService.currentTrack);
   }
 
-  void _showMoreOptions(BuildContext context, PlayerService playerService) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.queue_music),
-              title: const Text('播放列表'),
-              onTap: () {
-                Navigator.pop(context);
-                _showPlaylist(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share),
-              title: const Text('分享'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: 实现分享功能
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.favorite_border),
-              title: const Text('收藏'),
-              onTap: () {
-                Navigator.pop(context);
-                // TODO: 实现收藏功能
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   String _formatDuration(Duration duration) {
     // 确保时间不为负数

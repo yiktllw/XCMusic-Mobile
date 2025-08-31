@@ -263,7 +263,7 @@ class MainScaffold extends StatelessWidget {
           Positioned(
             left: 12,
             right: 12,
-            bottom: 95, // 下移更多
+            bottom: 84, // 调整到更接近底栏的位置
             child: const FloatingPlayerBar(),
           ),
         ],
