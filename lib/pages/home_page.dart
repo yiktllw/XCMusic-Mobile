@@ -6,6 +6,7 @@ import '../services/playlist_service.dart';
 import '../models/playlist.dart';
 import '../utils/app_logger.dart';
 import '../config/song_list_layout.dart';
+import '../widgets/song_detail_panel.dart';
 import 'recommend_songs_page.dart';
 
 /// 主页内容页面
@@ -333,8 +334,18 @@ class _HomePageContentState extends State<HomePageContent> {
 
   /// 更多操作处理
   void _onMoreTap(Track track, int index) {
-    // TODO: 实现更多操作菜单
-    // 可以显示底部菜单包含：添加到歌单、下载、分享等选项
+    final playerService = Provider.of<PlayerService>(context, listen: false);
+    
+    SongDetailPanel.show(
+      context: context,
+      track: track,
+      index: index,
+      onPlay: () {
+        // 播放当前歌曲
+        playerService.setPlaylist(_recommendedSongs, index);
+        playerService.play();
+      },
+    );
   }
 
   /// 导航到推荐歌曲页面

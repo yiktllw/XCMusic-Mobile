@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:netease_cloud_music_api/netease_cloud_music_api.dart';
 import 'services/api_manager.dart';
 import 'services/player_service.dart';
@@ -151,10 +152,12 @@ class _XCMusicAppState extends State<XCMusicApp> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Logo或应用图标
-                Icon(
-                  Icons.music_note,
-                  size: 80,
-                  color: Colors.white,
+                SvgPicture.asset(
+                  'assets/icons/xcmusic_modular.svg',
+                  width: 80,
+                  height: 80,
+                  colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                  semanticsLabel: 'XCMusic Logo',
                 ),
                 SizedBox(height: 32),
                 // 加载指示器
