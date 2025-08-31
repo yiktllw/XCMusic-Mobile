@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui' as ui;
 import 'package:provider/provider.dart';
+import 'package:xcmusic_mobile/utils/app_logger.dart';
 import '../models/playlist.dart';
 import '../services/player_service.dart';
 import '../services/likelist_service.dart';
@@ -66,6 +68,28 @@ class _PlayerPageState extends State<PlayerPage>
     }
   }
 
+  /// 获取状态栏高度
+  double _getStatusBarHeight(BuildContext context) {
+    // 首先尝试从 MediaQuery 获取
+    final mediaQueryPadding = MediaQuery.of(context).padding.top;
+    if (mediaQueryPadding > 0) {
+      AppLogger.info('MediaQuery padding: $mediaQueryPadding');
+      return mediaQueryPadding;
+    }
+    
+    // 如果 MediaQuery 返回0，使用 View API
+    final view = View.of(context);
+    final statusBarHeight = view.padding.top / view.devicePixelRatio;
+    if (statusBarHeight > 0) {
+      AppLogger.info('View padding: $statusBarHeight');
+      return statusBarHeight;
+    }
+    
+    // 最后的备用方案：使用固定高度
+    AppLogger.warning('无法获取状态栏高度，使用默认值');
+    return 44.0; // iOS刘海屏的标准状态栏高度
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<PlayerService>(
@@ -81,28 +105,48 @@ class _PlayerPageState extends State<PlayerPage>
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          appBar: AppBar(
-            systemOverlayStyle: SystemUiOverlayStyle(
-              statusBarColor: Colors.transparent,
-              statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark 
-                  ? Brightness.light 
-                  : Brightness.dark,
-              statusBarBrightness: Theme.of(context).brightness,
-            ),
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            foregroundColor: Theme.of(context).brightness == Brightness.dark 
-                ? Colors.white 
-                : Colors.black,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: () => _showMoreOptions(context, playerService),
+          body: Column(
+            children: [
+              // 状态栏占位区域 - 使用多种方法获取状态栏高度
+              Container(
+                height: _getStatusBarHeight(context),
+                color: Theme.of(context).scaffoldBackgroundColor,
+              ),
+              // 自定义顶部栏
+              Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
+                      width: 0.5,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    // 返回按钮
+                    IconButton(
+                      icon: const Icon(Icons.keyboard_arrow_down),
+                      iconSize: 28,
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const Spacer(),
+                    // 更多选项按钮
+                    IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () => _showMoreOptions(context, playerService),
+                    ),
+                  ],
+                ),
+              ),
+              // 播放器内容
+              Expanded(
+                child: currentTrack != null ? _buildPlayerContent(context, playerService, currentTrack) : _buildEmptyState(),
               ),
             ],
-          ),
-          body: SafeArea(
-            child: currentTrack != null ? _buildPlayerContent(context, playerService, currentTrack) : _buildEmptyState(),
           ),
         );
       },
