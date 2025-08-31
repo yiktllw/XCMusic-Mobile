@@ -602,15 +602,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -892,7 +885,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (_myPlaylists.isEmpty)
                   SliverToBoxAdapter(
                     child: Container(
-                      color: Theme.of(context).scaffoldBackgroundColor,
+                      color: Colors.transparent,
                       child: const Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: 16,
@@ -912,7 +905,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     itemCount: _myPlaylists.length,
                     itemBuilder: (context, index) {
                       return Container(
-                        color: Theme.of(context).scaffoldBackgroundColor,
+                        color: Colors.transparent,
                         child: _buildPlaylistItem(_myPlaylists[index]),
                       );
                     },
@@ -920,7 +913,7 @@ class _ProfilePageState extends State<ProfilePage> {
               else if (_collectedPlaylists.isEmpty)
                 SliverToBoxAdapter(
                   child: Container(
-                    color: Theme.of(context).scaffoldBackgroundColor,
+                    color: Colors.transparent,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: 16,
@@ -940,7 +933,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   itemCount: _collectedPlaylists.length,
                   itemBuilder: (context, index) {
                     return Container(
-                      color: Theme.of(context).scaffoldBackgroundColor,
+                      color: Colors.transparent,
                       child: _buildPlaylistItem(_collectedPlaylists[index]),
                     );
                   },
@@ -948,7 +941,7 @@ class _ProfilePageState extends State<ProfilePage> {
             else if (_isLoadingAlbums)
               SliverToBoxAdapter(
                 child: Container(
-                  color: Theme.of(context).scaffoldBackgroundColor,
+                  color: Colors.transparent,
                   child: const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),
@@ -960,7 +953,7 @@ class _ProfilePageState extends State<ProfilePage> {
             else if (_albums.isEmpty)
               SliverToBoxAdapter(
                 child: Container(
-                  color: Theme.of(context).scaffoldBackgroundColor,
+                  color: Colors.transparent,
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 32),
                     child: Center(
@@ -977,7 +970,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 itemCount: _albums.length,
                 itemBuilder: (context, index) {
                   return Container(
-                    color: Theme.of(context).scaffoldBackgroundColor,
+                    color: Colors.transparent,
                     child: _buildAlbumItem(_albums[index]),
                   );
                 },
@@ -987,7 +980,7 @@ class _ProfilePageState extends State<ProfilePage> {
             if (_userPlaylists.isEmpty && !_isLoadingPlaylists)
               SliverToBoxAdapter(
                 child: Container(
-                  color: Theme.of(context).scaffoldBackgroundColor,
+                  color: Colors.transparent,
                   child: const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),

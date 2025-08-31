@@ -137,35 +137,86 @@ class _PlayerPageState extends State<PlayerPage>
       builder: (context, child) {
         return Transform.rotate(
           angle: _albumRotationAnimation.value * 2 * 3.14159,
-          child: Container(
-            width: 280,
-            height: 280,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: ClipOval(
-              child: Image.network(
-                '${track.album.picUrl}?param=500y500',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.music_note,
-                      size: 100,
-                      color: Theme.of(context).colorScheme.outline,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // 黑胶外圈 - 使用PNG
+              Container(
+                width: 320,
+                height: 320,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle, // 设置为圆形
+                  boxShadow: [
+                    // 主要外阴影 - 居中，无偏移
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 0), // 无偏移，阴影均匀分布
+                      spreadRadius: 2,
                     ),
-                  );
-                },
+                    // 轻微的向下阴影，增加立体感
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: RepaintBoundary(
+                  child: Image.asset(
+                    'assets/images/vinyl_ring_2x.png', // 使用PNG版本提升性能
+                    width: 320,
+                    height: 320,
+                    filterQuality: FilterQuality.medium, // 优化缩放质量
+                  ),
+                ),
               ),
-            ),
+              // 专辑封面
+              Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: Image.network(
+                    '${track.album.picUrl}?param=500y500',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        child: Icon(
+                          Icons.music_note,
+                          size: 80,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              // 中心圆点（唱片轴心）
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black87,
+                  border: Border.all(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

@@ -33,11 +33,24 @@ class ThemeService extends ChangeNotifier {
     colorScheme: ColorScheme.fromSeed(
       seedColor: Colors.deepPurple,
       brightness: Brightness.dark,
+    ).copyWith(
+      // 自定义背景颜色，使用更浅的深灰色
+      surface: const Color(0xFF2A2A2E),           // 主要表面色 - 浅深灰
+      onSurface: const Color(0xFFE8E8EA),         // 表面上的文字颜色 - 更亮的浅灰
+      surfaceContainerHighest: const Color(0xFF3A3A3E), // 最高容器表面 - 浅中灰
+      surfaceContainer: const Color(0xFF323236),   // 容器表面 - 浅深灰
+      surfaceContainerHigh: const Color(0xFF363639), // 高容器表面 - 中浅灰
+      surfaceContainerLow: const Color(0xFF2D2D31),  // 低容器表面 - 接近背景的浅深灰
+      outline: const Color(0xFF626268),            // 轮廓线颜色 - 更亮的中等灰色
+      onSurfaceVariant: const Color(0xFFC8C8CA),   // 表面变体上的文字 - 更亮的浅灰
     ),
+    scaffoldBackgroundColor: const Color(0xFF1E1E22), // 脚手架背景色 - 浅深灰
     useMaterial3: true,
     appBarTheme: const AppBarTheme(
       centerTitle: true,
       elevation: 0,
+      backgroundColor: Color(0xFF2A2A2E),         // AppBar背景色
+      foregroundColor: Color(0xFFE8E8EA),         // AppBar前景色
     ),
   );
 
