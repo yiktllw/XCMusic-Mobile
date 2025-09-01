@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -15,10 +16,14 @@ import 'pages/player_page.dart';
 import 'pages/playlist_detail_page.dart';
 import 'pages/album_detail_page.dart';
 import 'pages/search_page.dart';
-import 'widgets/bottom_player_bar.dart';
+import 'pages/search_result_page.dart';
+import 'pages/qr_login_page.dart';
+import 'pages/settings_page.dart';
+import 'pages/recommend_songs_page.dart';
 import 'widgets/common_drawer.dart';
 import 'widgets/playlist_sheet.dart';
 import 'widgets/scrolling_text.dart';
+import 'widgets/auto_floating_player_wrapper.dart';
 import 'utils/global_config.dart';
 import 'utils/app_logger.dart';
 import 'config/search_bar_config.dart';
@@ -93,7 +98,7 @@ class XCMusicApp extends StatefulWidget {
 class _XCMusicAppState extends State<XCMusicApp> {
   PlayerService? _playerService;
   ThemeService? _themeService;
-  bool _isInitialized = false;
+  bool _isThemeInitialized = false;
 
   @override
   void initState() {
@@ -106,7 +111,7 @@ class _XCMusicAppState extends State<XCMusicApp> {
       _playerService = PlayerService();
       _themeService = ThemeService();
       
-      // 等待主题服务初始化完成（设置超时）
+      // 首先同步初始化主题服务，避免主题切换闪烁
       await _themeService!.initialize().timeout(
         Duration(seconds: 5),
         onTimeout: () {
@@ -114,99 +119,79 @@ class _XCMusicAppState extends State<XCMusicApp> {
         },
       );
       
-      // 初始化播放器（设置超时，避免网络问题导致卡住）
+      // 主题初始化完成后更新界面
+      if (mounted) {
+        setState(() {
+          _isThemeInitialized = true;
+        });
+      }
+      
+      // 后台初始化播放器（不阻塞界面显示）
+      _initializePlayerAsync();
+      
+      // 初始化喜欢列表服务
+      _initializeLikelistAsync();
+      
+      AppLogger.info('核心服务初始化完成');
+    } catch (e) {
+      AppLogger.error('服务初始化失败，使用默认配置: $e');
+      // 即使失败也要显示界面
+      if (mounted) {
+        setState(() {
+          _isThemeInitialized = true;
+        });
+      }
+    }
+  }
+  
+  Future<void> _initializePlayerAsync() async {
+    try {
       await _playerService!.initialize().timeout(
         Duration(seconds: 10),
         onTimeout: () {
           AppLogger.warning('播放器初始化超时，跳过状态恢复');
         },
       );
-      
-      // 初始化喜欢列表服务
-      try {
-        await LikelistService().initializeLikelistOnStartup();
-        AppLogger.info('喜欢列表服务初始化完成');
-      } catch (e) {
-        AppLogger.error('喜欢列表服务初始化失败', e);
-      }
-      
-      AppLogger.info('服务初始化完成');
+      AppLogger.info('播放器服务初始化完成');
     } catch (e) {
-      AppLogger.error('服务初始化失败，使用默认配置: $e');
-    } finally {
-      // 无论如何都要设置为已初始化，让用户能进入应用
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-        });
-      }
+      AppLogger.error('播放器初始化失败', e);
+    }
+  }
+  
+  Future<void> _initializeLikelistAsync() async {
+    try {
+      await LikelistService().initializeLikelistOnStartup();
+      AppLogger.info('喜欢列表服务初始化完成');
+    } catch (e) {
+      AppLogger.error('喜欢列表服务初始化失败', e);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
+    // 在主题初始化完成之前显示开屏界面，避免主题切换闪烁
+    if (!_isThemeInitialized) {
+      // 根据系统主题决定背景颜色，减少视觉冲击
+      final brightness = MediaQuery.platformBrightnessOf(context);
+      final backgroundColor = brightness == Brightness.dark ? Colors.black : Colors.white;
+      final logoColor = brightness == Brightness.dark ? Colors.white : Colors.black;
+      
       return MaterialApp(
         home: Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: backgroundColor,
           body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo或应用图标
-                SvgPicture.asset(
-                  'assets/icons/xcmusic_modular.svg',
-                  width: 80,
-                  height: 80,
-                  colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
-                  semanticsLabel: 'XCMusic Logo',
-                ),
-                SizedBox(height: 32),
-                // 加载指示器
-                CircularProgressIndicator(
-                  color: Colors.blue,
-                ),
-                SizedBox(height: 24),
-                // 加载文本
-                Text(
-                  '正在初始化应用...',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  '首次启动可能需要几秒钟',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-                SizedBox(height: 32),
-                // 跳过按钮（紧急情况下使用）
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _isInitialized = true;
-                    });
-                  },
-                  child: Text(
-                    '跳过初始化',
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
+            child: SvgPicture.asset(
+              'assets/icons/xcmusic_modular.svg',
+              width: 80,
+              height: 80,
+              colorFilter: ColorFilter.mode(logoColor, BlendMode.srcIn),
+              semanticsLabel: 'XCMusic Logo',
             ),
           ),
         ),
       );
     }
-
+    
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _playerService ?? PlayerService()),
@@ -220,31 +205,53 @@ class _XCMusicAppState extends State<XCMusicApp> {
             darkTheme: themeService.darkTheme,
             themeMode: themeService.currentThemeMode,
             home: const MainScaffold(),
-            routes: {
-              '/player': (context) => const PlayerPageWrapper(),
-            },
+            routes: AutoRouteBuilder.createRoutesMap({
+              '/player': (context) => const PlayerPage(),
+              '/search': (context) => const SearchPage(),
+              '/debug': (context) => const DebugPage(),
+              '/qr_login': (context) => const QrLoginPage(),
+              '/settings': (context) => const SettingsPage(),
+            }),
             onGenerateRoute: (settings) {
-              // 为所有页面添加底部播放栏包装
+              // 自动为所有页面添加浮动播放栏包装
               Widget page;
               switch (settings.name) {
                 case '/playlist_detail':
                   final args = settings.arguments as Map<String, dynamic>?;
-                  page = PlaylistDetailPageWrapper(
+                  page = PlaylistDetailPage(
                     playlistId: args?['playlistId'] ?? '',
                     playlistName: args?['playlistName'],
                   );
                   break;
                 case '/album_detail':
                   final args = settings.arguments as Map<String, dynamic>?;
-                  page = AlbumDetailPageWrapper(
+                  page = AlbumDetailPage(
                     albumId: args?['albumId'] ?? '',
                     albumName: args?['albumName'],
                   );
                   break;
+                case '/recommend_songs':
+                  final args = settings.arguments as Map<String, dynamic>?;
+                  final recommendedSongs = args?['recommendedSongs'] as List<Track>? ?? [];
+                  page = RecommendSongsPage(
+                    recommendedSongs: recommendedSongs,
+                  );
+                  break;
+                case '/search_result':
+                  final args = settings.arguments as Map<String, dynamic>?;
+                  final query = args?['query'] as String? ?? '';
+                  page = SearchResultPage(query: query);
+                  break;
                 default:
                   return null;
               }
-              return MaterialPageRoute(builder: (context) => page);
+              
+              // 自动包装浮动播放栏
+              return AutoWrappedPageRoute(
+                builder: (context) => page,
+                settings: settings,
+                routeName: settings.name,
+              );
             },
           );
         },
@@ -268,7 +275,7 @@ class MainScaffold extends StatelessWidget {
           Positioned(
             left: 12,
             right: 12,
-            bottom: 84, // 调整到更接近底栏的位置
+            bottom: MediaQuery.of(context).padding.bottom + 64, // 适应安全区域
             child: const FloatingPlayerBar(),
           ),
         ],
@@ -304,8 +311,34 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  Future<bool> _onWillPop() async {
+    if (_currentIndex == 1) {
+      // 在"我的"页面时，返回主页
+      setState(() {
+        _currentIndex = 0;
+      });
+      return false; // 阻止默认的返回行为
+    } else {
+      // 在"主页"时，最小化程序
+      SystemNavigator.pop();
+      return false; // 阻止默认的返回行为
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false, // 阻止默认的返回行为
+      onPopInvoked: (didPop) async {
+        if (!didPop) {
+          await _onWillPop();
+        }
+      },
+      child: _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     // 当在"我的"页面时，使用全屏显示
     if (_currentIndex == 1) {
       return Scaffold(
@@ -320,7 +353,6 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
-
     // 主页也使用全屏显示，确保浮动播放控件在侧栏下方
     if (_currentIndex == 0) {
       return Scaffold(
@@ -330,9 +362,7 @@ class _HomePageState extends State<HomePage> {
           foregroundColor: Theme.of(context).colorScheme.onSurface,
           title: GestureDetector(
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const SearchPage()),
-              );
+              Navigator.of(context).pushNamed('/search');
             },
             child: Container(
               height: SearchBarConfig.height,
@@ -439,106 +469,6 @@ class _HomePageState extends State<HomePage> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
-      ),
-    );
-  }
-}
-
-/// 播放器页面包装器（不显示底部播放控件）
-class PlayerPageWrapper extends StatelessWidget {
-  const PlayerPageWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: PlayerPage(),
-    );
-  }
-}
-
-/// 歌单详情页面包装器
-class PlaylistDetailPageWrapper extends StatelessWidget {
-  final String playlistId;
-  final String? playlistName;
-
-  const PlaylistDetailPageWrapper({
-    super.key,
-    required this.playlistId,
-    this.playlistName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          PlaylistDetailPage(
-            playlistId: playlistId,
-            playlistName: playlistName,
-          ),
-          // 浮动播放控件
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 20,
-            child: const FloatingPlayerBar(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 专辑详情页面包装器
-class AlbumDetailPageWrapper extends StatelessWidget {
-  final String albumId;
-  final String? albumName;
-
-  const AlbumDetailPageWrapper({
-    super.key,
-    required this.albumId,
-    this.albumName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          AlbumDetailPage(
-            albumId: albumId,
-            albumName: albumName,
-          ),
-          // 浮动播放控件
-          Positioned(
-            left: 12,
-            right: 12,
-            bottom: 20,
-            child: const FloatingPlayerBar(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 通用页面包装器
-class PageWrapper extends StatelessWidget {
-  final Widget child;
-
-  const PageWrapper({
-    super.key,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          Expanded(child: child),
-          const BottomPlayerBar(),
-        ],
       ),
     );
   }

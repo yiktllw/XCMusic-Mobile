@@ -249,7 +249,6 @@ class _SearchResultPageState extends State<SearchResultPage>
           return false;
         },
         child: ListView.builder(
-          padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
           itemCount: songs.length + (_shouldShowLoadingIndicator(1006) ? 1 : 0),
           itemBuilder: (context, index) {
             // 如果是最后一项且正在加载，显示加载指示器
@@ -875,7 +874,7 @@ class _SearchResultPageState extends State<SearchResultPage>
         return false;
       },
       child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100), // 适应safe area + 浮动播放控件
         itemCount: artists.length + (_shouldShowLoadingIndicator(100) ? 1 : 0),
         itemBuilder: (context, index) {
           // 如果是最后一项且正在加载，显示加载指示器
@@ -925,7 +924,7 @@ class _SearchResultPageState extends State<SearchResultPage>
         return false;
       },
       child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100), // 适应safe area + 浮动播放控件
         itemCount: albums.length + (_shouldShowLoadingIndicator(10) ? 1 : 0),
         itemBuilder: (context, index) {
           // 如果是最后一项且正在加载，显示加载指示器
@@ -990,7 +989,7 @@ class _SearchResultPageState extends State<SearchResultPage>
         return false;
       },
       child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100), // 适应safe area + 浮动播放控件
         itemCount:
             playlists.length + (_shouldShowLoadingIndicator(1000) ? 1 : 0),
         itemBuilder: (context, index) {
@@ -1056,7 +1055,7 @@ class _SearchResultPageState extends State<SearchResultPage>
         return false;
       },
       child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 100), // 为浮动播放控件预留空间
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100), // 适应safe area + 浮动播放控件
         itemCount: users.length + (_shouldShowLoadingIndicator(1002) ? 1 : 0),
         itemBuilder: (context, index) {
           // 如果是最后一项且正在加载，显示加载指示器
@@ -1142,7 +1141,7 @@ class _SearchResultPageState extends State<SearchResultPage>
           Positioned(
             left: 12,
             right: 12,
-            bottom: 20,
+            bottom: MediaQuery.of(context).padding.bottom + 20, // 适应safe area
             child: Consumer<PlayerService>(
               builder: (context, playerService, child) {
                 final currentTrack = playerService.currentTrack;
