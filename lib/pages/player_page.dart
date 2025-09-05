@@ -162,135 +162,176 @@ class _PlayerPageState extends State<PlayerPage>
   }
 
   Widget _buildPlayerContent(BuildContext context, PlayerService playerService, Track track) {
-    return Column(
-      children: [
-        // 专辑封面区域 - 在剩余空间中居中
-        Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: _buildAlbumCover(track),
-            ),
-          ),
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 计算底部控制区域的大概高度
+        final bottomControlsHeight = 300.0; // 底部控制区域的大概高度
         
-        // 底部控制区域 - 固定在屏幕下方
-        Container(
-          padding: const EdgeInsets.fromLTRB(0, 16.0, 0, 24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 歌曲信息
-              _buildSongInfo(track),
-              
-              const SizedBox(height: 16),
-              
-              // 进度条
-              _buildProgressBar(playerService),
-              
-              const SizedBox(height: 16),
-              
-              // 播放控件
-              _buildPlayControls(playerService),
-              
-              const SizedBox(height: 8),
-              
-              // 额外控制栏（喜欢、评论、收藏、下载、详情按钮）
-              _buildAdditionalControls(context, track),
-            ],
-          ),
-        ),
-      ],
+        // 计算专辑封面可用的空间
+        final availableHeight = constraints.maxHeight;
+        final albumCoverSpace = availableHeight - bottomControlsHeight;
+        
+        // 当专辑封面空间不足100时隐藏封面
+        final shouldShowAlbumCover = albumCoverSpace >= 100;
+        
+        return Column(
+          children: [
+            // 专辑封面区域 - 当空间足够时显示
+            if (shouldShowAlbumCover)
+              Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: _buildAlbumCover(track),
+                  ),
+                ),
+              )
+            else
+              // 空间不足时显示一个小的占位区域
+              Container(
+                height: 40,
+                child: Center(
+                  child: Icon(
+                    Icons.music_note,
+                    size: 24,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ),
+              ),
+            
+            // 底部控制区域 - 固定在屏幕下方，适应安全区域
+            Container(
+              padding: EdgeInsets.fromLTRB(0, 16.0, 0, 24.0 + MediaQuery.of(context).padding.bottom),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 歌曲信息
+                  _buildSongInfo(track),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // 进度条
+                  _buildProgressBar(playerService),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // 播放控件
+                  _buildPlayControls(playerService),
+                  
+                  const SizedBox(height: 8),
+                  
+                  // 额外控制栏（喜欢、评论、收藏、下载、详情按钮）
+                  _buildAdditionalControls(context, track),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildAlbumCover(Track track) {
-    return AnimatedBuilder(
-      animation: _albumRotationAnimation,
-      builder: (context, child) {
-        return Transform.rotate(
-          angle: _albumRotationAnimation.value * 2 * 3.14159,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              // 黑胶外圈 - 使用PNG
-              Container(
-                width: 320,
-                height: 320,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle, // 设置为圆形
-                  boxShadow: [
-                    // 主要外阴影 - 居中，无偏移
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 0), // 无偏移，阴影均匀分布
-                      spreadRadius: 2,
-                    ),
-                    // 轻微的向下阴影，增加立体感
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                      spreadRadius: 0,
-                    ),
-                  ],
-                ),
-                child: RepaintBoundary(
-                  child: Image.asset(
-                    'assets/images/vinyl_ring_2x.png', // 使用PNG版本提升性能
-                    width: 320,
-                    height: 320,
-                    filterQuality: FilterQuality.medium, // 优化缩放质量
-                  ),
-                ),
-              ),
-              // 专辑封面
-              Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: ClipOval(
-                  child: Image.network(
-                    '${track.album.picUrl}?param=500y500',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        child: Icon(
-                          Icons.music_note,
-                          size: 80,
-                          color: Theme.of(context).colorScheme.outline,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 计算可用的最大尺寸，保持正方形
+        final maxSize = constraints.biggest.shortestSide;
+        // 留出一些边距，避免贴边
+        final albumSize = (maxSize * 0.9).clamp(200.0, 320.0);
+        final coverSize = albumSize * 0.625; // 专辑封面占黑胶的62.5%
+        
+        return AnimatedBuilder(
+          animation: _albumRotationAnimation,
+          builder: (context, child) {
+            return Transform.rotate(
+              angle: _albumRotationAnimation.value * 2 * 3.14159,
+              child: SizedBox(
+                width: albumSize,
+                height: albumSize,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // 黑胶外圈 - 使用PNG
+                    Container(
+                      width: albumSize,
+                      height: albumSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle, // 设置为圆形
+                        boxShadow: [
+                          // 主要外阴影 - 居中，无偏移
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 0), // 无偏移，阴影均匀分布
+                            spreadRadius: 2,
+                          ),
+                          // 轻微的向下阴影，增加立体感
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                            spreadRadius: 0,
+                          ),
+                        ],
+                      ),
+                      child: RepaintBoundary(
+                        child: Image.asset(
+                          'assets/images/vinyl_ring_2x.png', // 使用PNG版本提升性能
+                          width: albumSize,
+                          height: albumSize,
+                          filterQuality: FilterQuality.medium, // 优化缩放质量
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                    // 专辑封面
+                    Container(
+                      width: coverSize,
+                      height: coverSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 15,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: Image.network(
+                          '${track.album.picUrl}?param=500y500',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              child: Icon(
+                                Icons.music_note,
+                                size: coverSize * 0.4, // 图标大小随封面大小缩放
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    // 中心圆点（唱片轴心）
+                    Container(
+                      width: albumSize * 0.0375, // 相对于黑胶大小的比例
+                      height: albumSize * 0.0375,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black87,
+                        border: Border.all(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              // 中心圆点（唱片轴心）
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black87,
-                  border: Border.all(
-                    color: Colors.grey.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
