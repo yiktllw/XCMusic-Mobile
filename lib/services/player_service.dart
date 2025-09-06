@@ -243,8 +243,6 @@ class PlayerService extends ChangeNotifier {
         audioFocus: audioFocus,
       ),
     ));
-    
-    AppLogger.info('🔊 音频上下文已更新: allowInterruption=$allowInterruption, audioFocus=$audioFocus');
   }
 
   /// 公开方法：更新音频焦点设置
@@ -1190,8 +1188,6 @@ class AudioPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler
       speed: playing ? 1.0 : 0.0,
       queueIndex: PlayerService().currentIndex >= 0 ? PlayerService().currentIndex : null,
     ));
-    
-    debugPrint('🎵 AudioService播放状态已更新: playing=$playing, position=${position.inSeconds}s');
   }
   
   /// 更新媒体信息（由 PlayerService 调用）
@@ -1208,7 +1204,6 @@ class AudioPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler
     );
     
     this.mediaItem.add(mediaItem);
-    debugPrint('🎵 AudioService媒体信息已更新: ${track.name} - ${track.artists.map((a) => a.name).join(', ')}');
   }
   
   /// 更新播放队列（由 PlayerService 调用）
@@ -1226,7 +1221,6 @@ class AudioPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler
     )).toList();
     
     queue.add(queueItems);
-    debugPrint('🎵 AudioService队列已更新: ${queueItems.length}首歌曲');
   }
   
   @override
