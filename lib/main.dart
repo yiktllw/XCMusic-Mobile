@@ -8,6 +8,8 @@ import 'services/api_manager.dart';
 import 'services/player_service.dart';
 import 'services/theme_service.dart';
 import 'services/likelist_service.dart';
+import 'services/sleep_timer_service.dart';
+import 'services/navigation_service.dart';
 import 'models/playlist.dart';
 import 'pages/debug_page.dart';
 import 'pages/home_page.dart';
@@ -20,6 +22,8 @@ import 'pages/search_result_page.dart';
 import 'pages/qr_login_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/recommend_songs_page.dart';
+import 'pages/sleep_timer_page.dart';
+import 'pages/sensor_permission_page.dart';
 import 'widgets/common_drawer.dart';
 import 'widgets/playlist_sheet.dart';
 import 'widgets/scrolling_text.dart';
@@ -98,6 +102,7 @@ class XCMusicApp extends StatefulWidget {
 class _XCMusicAppState extends State<XCMusicApp> {
   PlayerService? _playerService;
   ThemeService? _themeService;
+  SleepTimerService? _sleepTimerService;
   bool _isThemeInitialized = false;
 
   @override
@@ -110,6 +115,7 @@ class _XCMusicAppState extends State<XCMusicApp> {
     try {
       _playerService = PlayerService();
       _themeService = ThemeService();
+      _sleepTimerService = SleepTimerService();
       
       // 首先同步初始化主题服务，避免主题切换闪烁
       await _themeService!.initialize().timeout(
@@ -131,6 +137,9 @@ class _XCMusicAppState extends State<XCMusicApp> {
       
       // 初始化喜欢列表服务
       _initializeLikelistAsync();
+      
+      // 初始化定时关闭服务
+      _initializeSleepTimerAsync();
       
       AppLogger.info('核心服务初始化完成');
     } catch (e) {
@@ -166,6 +175,17 @@ class _XCMusicAppState extends State<XCMusicApp> {
       AppLogger.error('喜欢列表服务初始化失败', e);
     }
   }
+  
+  Future<void> _initializeSleepTimerAsync() async {
+    try {
+      await _sleepTimerService!.initialize();
+      // 设置播放器服务引用，让定时关闭服务可以控制播放
+      _sleepTimerService!.setPlayerService(_playerService!);
+      AppLogger.info('定时关闭服务初始化完成');
+    } catch (e) {
+      AppLogger.error('定时关闭服务初始化失败', e);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -196,11 +216,13 @@ class _XCMusicAppState extends State<XCMusicApp> {
       providers: [
         ChangeNotifierProvider.value(value: _playerService ?? PlayerService()),
         ChangeNotifierProvider.value(value: _themeService ?? ThemeService()),
+        ChangeNotifierProvider.value(value: _sleepTimerService ?? SleepTimerService()),
       ],
       child: Consumer<ThemeService>(
         builder: (context, themeService, child) {
           return MaterialApp(
             title: 'XCMusic',
+            navigatorKey: NavigationService.navigatorKey,
             theme: themeService.lightTheme,
             darkTheme: themeService.darkTheme,
             themeMode: themeService.currentThemeMode,
@@ -211,6 +233,8 @@ class _XCMusicAppState extends State<XCMusicApp> {
               '/debug': (context) => const DebugPage(),
               '/qr_login': (context) => const QrLoginPage(),
               '/settings': (context) => const SettingsPage(),
+              '/sleep-timer': (context) => const SleepTimerPage(),
+              '/sensor_permission': (context) => const SensorPermissionPage(),
             }),
             onGenerateRoute: (settings) {
               // 自动为所有页面添加浮动播放栏包装

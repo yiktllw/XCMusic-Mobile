@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../pages/settings_page.dart';
+import '../pages/sleep_timer_page.dart';
 import '../services/login_service.dart';
 import '../utils/top_banner.dart';
 
@@ -84,6 +85,18 @@ class CommonDrawer extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const SettingsPage(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bedtime, size: 20),
+              title: const Text('定时关闭', style: TextStyle(fontSize: 14)),
+              onTap: () {
+                Navigator.pop(context); // 关闭侧栏
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const SleepTimerPage(),
                   ),
                 );
               },

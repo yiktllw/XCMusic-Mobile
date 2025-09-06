@@ -76,6 +76,12 @@ dependencies:
   logger: ^2.6.1
   image: ^4.5.4
 
+  # 传感器支持（智能关闭功能）
+  sensors_plus: ^4.0.2
+  
+  # 权限管理
+  permission_handler: ^11.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

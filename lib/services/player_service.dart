@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,9 @@ import 'dart:async';
 import '../models/playlist.dart';
 import '../services/api_manager.dart';
 import '../utils/global_config.dart';
+import 'sleep_timer_service.dart';
+import 'navigation_service.dart';
+import '../widgets/night_mode_ask_dialog.dart';
 
 /// 播放模式
 enum PlayMode {
@@ -63,6 +67,12 @@ class PlayerService extends ChangeNotifier {
   
   // 上次保存状态的时间，避免频繁保存
   DateTime? _lastSaveTime;
+  
+  // 定时关闭相关状态
+  bool _shouldStopAfterCurrentTrack = false;
+  
+  // 用于跟踪用户手动播放意图
+  bool _isUserInitiatedPlay = false;
 
   /// 初始化播放器
   void _initializePlayer() {
@@ -93,6 +103,13 @@ class PlayerService extends ChangeNotifier {
       // 只有当播放状态真正改变时才强制更新 MediaSession
       if (oldState != _playerState) {
         await _forceUpdateMediaSession();
+        
+        // 检查夜间询问：当开始播放且是用户发起的播放时
+        if (_playerState == PlaybackState.playing && _isUserInitiatedPlay) {
+          AppLogger.info('🌙 用户发起的播放已开始，检查夜间询问条件');
+          _checkAndShowNightModeAsk();
+          _isUserInitiatedPlay = false; // 重置标志
+        }
         
         // 启动或停止定时器
         if (_playerState == PlaybackState.playing) {
@@ -290,6 +307,13 @@ class PlayerService extends ChangeNotifier {
   bool get isPaused => _playerState == PlaybackState.paused;
   bool get hasNext => _currentIndex < _playlist.length - 1;
   bool get hasPrevious => _currentIndex > 0;
+  bool get shouldStopAfterCurrentTrack => _shouldStopAfterCurrentTrack;
+
+  /// 设置是否在当前歌曲播放完成后停止
+  void setShouldStopAfterCurrentTrack(bool shouldStop) {
+    _shouldStopAfterCurrentTrack = shouldStop;
+    AppLogger.info('设置播放完成后停止状态: $shouldStop');
+  }
 
   /// 重写 notifyListeners 以自动更新 MediaSession
   @override
@@ -661,6 +685,10 @@ class PlayerService extends ChangeNotifier {
 
   /// 设置播放列表并开始播放
   Future<void> playPlaylist(List<Track> tracks, {int startIndex = 0}) async {
+    // 标记这是用户发起的播放
+    _isUserInitiatedPlay = true;
+    AppLogger.info('🌙 用户选择播放列表，设置夜间询问检查标志');
+    
     _playlist = List.from(tracks);
     _currentIndex = startIndex.clamp(0, _playlist.length - 1);
     
@@ -684,6 +712,10 @@ class PlayerService extends ChangeNotifier {
   Future<void> play() async {
     // 播放方法被调用
     
+    // 标记这是用户发起的播放
+    _isUserInitiatedPlay = true;
+    AppLogger.info('🌙 用户手动播放，设置夜间询问检查标志');
+    
     // 确保音频上下文在每次播放时都正确设置
     await _updateAudioContext();
     
@@ -700,6 +732,29 @@ class PlayerService extends ChangeNotifier {
       }
     } else {
       AppLogger.warning('🎵 无当前歌曲，无法播放');
+    }
+  }
+
+  /// 检查并显示夜间询问对话框
+  void _checkAndShowNightModeAsk() {
+    try {
+      final sleepTimerService = SleepTimerService();
+      
+      // 检查是否应该询问设置定时关闭
+      if (sleepTimerService.shouldAskForSleepTimer()) {
+        AppLogger.info('🌙 检测到夜间手动播放，准备显示询问对话框');
+        
+        // 使用NavigationService显示对话框
+        Future.delayed(const Duration(milliseconds: 500), () {
+          final navigationService = NavigationService();
+          navigationService.showDialogGlobal(
+            builder: (context) => const NightModeAskDialog(),
+            barrierDismissible: false,
+          );
+        });
+      }
+    } catch (e) {
+      AppLogger.error('检查夜间询问时出错', e);
     }
   }
 
@@ -720,8 +775,13 @@ class PlayerService extends ChangeNotifier {
   }
 
   /// 下一首
-  Future<void> next() async {
+  Future<void> next({bool userInitiated = false}) async {
     AppLogger.info('next() 调用开始，当前播放模式: $_playMode, 当前索引: $_currentIndex, 播放列表长度: ${_playlist.length}');
+    
+    // 如果是用户发起的操作，设置标志
+    if (userInitiated) {
+      _isUserInitiatedPlay = true;
+    }
     
     if (_playMode == PlayMode.shuffle) {
       // 随机播放
@@ -756,7 +816,12 @@ class PlayerService extends ChangeNotifier {
   }
 
   /// 上一首
-  Future<void> previous() async {
+  Future<void> previous({bool userInitiated = false}) async {
+    // 如果是用户发起的操作，设置标志
+    if (userInitiated) {
+      _isUserInitiatedPlay = true;
+    }
+    
     if (_position.inSeconds > 3) {
       // 如果播放时间超过3秒，重新播放当前歌曲
       await seek(Duration.zero);
@@ -806,6 +871,16 @@ class PlayerService extends ChangeNotifier {
   void _onTrackCompleted() {
     AppLogger.info('歌曲播放完成，当前播放模式: $_playMode, 当前索引: $_currentIndex');
     
+    // 检查是否需要在当前歌曲播放完成后停止
+    if (_shouldStopAfterCurrentTrack) {
+      AppLogger.info('检测到定时关闭标志，停止播放');
+      _shouldStopAfterCurrentTrack = false; // 重置标志
+      stop().catchError((e) {
+        AppLogger.error('定时关闭停止播放失败', e);
+      });
+      return;
+    }
+    
     if (_playMode == PlayMode.singleLoop) {
       // 单曲循环 - 异步调用不阻塞
       AppLogger.info('执行单曲循环，保持索引: $_currentIndex');
@@ -822,8 +897,13 @@ class PlayerService extends ChangeNotifier {
   }
 
   /// 快速实现一个解决方案：简单地调用next()和previous()方法来处理playTrackAt
-  Future<void> playTrackAt(int index) async {
+  Future<void> playTrackAt(int index, {bool userInitiated = true}) async {
     if (index >= 0 && index < _playlist.length) {
+      // 只有在用户发起的情况下才标记
+      if (userInitiated) {
+        _isUserInitiatedPlay = true;
+      }
+      
       _currentIndex = index;
       
       // 更新AudioService队列当前索引
@@ -1210,7 +1290,7 @@ class AudioPlayerHandler extends BaseAudioHandler with QueueHandler, SeekHandler
       // 检查当前歌曲索引
       if (playerService.currentIndex < 0 || playerService.currentIndex >= playerService.playlist.length) {
         debugPrint('🎵 无效的歌曲索引，设置为第一首');
-        await playerService.playTrackAt(0);
+        await playerService.playTrackAt(0, userInitiated: false);
         return;
       }
       
