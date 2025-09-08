@@ -18,6 +18,10 @@ class SleepTimerService extends ChangeNotifier {
   bool _smartTimer = false;
   int _lastSetMinutes = 30;
   
+  // 智能检测历史记录
+  final List<SleepDetectionResult> _detectionHistory = [];
+  Timer? _periodicShortenTimer;
+  
   // 夜间询问相关设置
   bool _nightModeAsk = false;
   int _nightStartHour = 22;  // 晚上10点
@@ -160,6 +164,8 @@ class SleepTimerService extends ChangeNotifier {
   void cancel() {
     _timer?.cancel();
     _timer = null;
+    _periodicShortenTimer?.cancel();
+    _periodicShortenTimer = null;
     _endTime = null;
     _isActive = false;
     
@@ -168,6 +174,9 @@ class SleepTimerService extends ChangeNotifier {
       _smartDetectionService?.stopMonitoring();
       AppLogger.info('已停止智能监听');
     }
+    
+    // 清空检测历史
+    _detectionHistory.clear();
     
     _saveSettings();
     
@@ -184,6 +193,8 @@ class SleepTimerService extends ChangeNotifier {
 
   /// 设置智能关闭
   void setSmartTimer(bool value) {
+    AppLogger.info('设置智能关闭: $value, 当前状态: _smartTimer=$_smartTimer, _isActive=$_isActive');
+    
     _smartTimer = value;
     
     if (value) {
@@ -197,6 +208,8 @@ class SleepTimerService extends ChangeNotifier {
       
       // 启动智能关闭模式
       _isActive = true;
+      AppLogger.info('智能关闭模式启动前状态: _isActive=$_isActive, _smartTimer=$_smartTimer');
+      
       _applySmartTimerLogic();
       
       // 记录传感器状态
@@ -217,6 +230,13 @@ class SleepTimerService extends ChangeNotifier {
       
       // 停止智能监听
       _smartDetectionService?.stopMonitoring();
+      
+      // 停止周期检查
+      _periodicShortenTimer?.cancel();
+      _periodicShortenTimer = null;
+      
+      // 清空检测历史
+      _detectionHistory.clear();
       
       AppLogger.info('智能关闭已禁用');
     }
@@ -322,6 +342,11 @@ class SleepTimerService extends ChangeNotifier {
       _endTime = null;
       _timer?.cancel();
       _timer = null;
+      _periodicShortenTimer?.cancel();
+      _periodicShortenTimer = null;
+      
+      // 清空检测历史
+      _detectionHistory.clear();
       
       _saveSettings();
       notifyListeners();
@@ -374,25 +399,13 @@ class SleepTimerService extends ChangeNotifier {
 
   /// 启动智能定时器
   void _startSmartTimer() {
-    final currentHour = DateTime.now().hour;
-    int baseMinutes;
-    
-    // 根据时间段设置基础定时时长
-    if ((currentHour >= 22) || (currentHour <= 6)) {
-      // 夜间时段：45-90分钟
-      baseMinutes = 60;
-    } else if (currentHour >= 12 && currentHour <= 14) {
-      // 午休时段：30-45分钟
-      baseMinutes = 35;
-    } else {
-      // 其他时段：60-120分钟
-      baseMinutes = 90;
-    }
+    // 统一设置基础定时时长为60分钟
+    int baseMinutes = 60;
     
     _lastSetMinutes = baseMinutes;
     _endTime = DateTime.now().add(Duration(minutes: baseMinutes));
     
-    AppLogger.info('智能关闭设置基础定时: $baseMinutes分钟');
+    AppLogger.info('智能关闭设置统一基础定时: $baseMinutes分钟');
     
     // 启动智能监听逻辑
     _startSmartMonitoring();
@@ -403,51 +416,67 @@ class SleepTimerService extends ChangeNotifier {
 
   /// 启动智能监听
   void _startSmartMonitoring() {
+    AppLogger.info('开始启动智能监听 - 检测服务状态: ${_smartDetectionService != null}, 权限状态: ${_smartDetectionService?.hasPermission}');
+    
     if (_smartDetectionService == null || !_smartDetectionService!.hasPermission) {
-      AppLogger.warning('智能检测服务不可用，使用基础定时模式');
+      AppLogger.warning('智能检测服务不可用，使用基础定时模式 - 服务: ${_smartDetectionService != null}, 权限: ${_smartDetectionService?.hasPermission}');
       return;
     }
 
+    AppLogger.info('准备启动智能检测监听，回调函数: $_onSleepDetected');
+    
     // 启动智能检测
     _smartDetectionService!.startMonitoring(
       onSleepDetected: _onSleepDetected,
     );
     
-    AppLogger.info('智能监听已启动');
+    AppLogger.info('智能检测监听已调用startMonitoring');
+    
+    // 启动10分钟周期检查定时器
+    _startPeriodicShortenCheck();
+    
+    AppLogger.info('智能监听已启动完成');
   }
 
-  /// 处理睡眠检测结果
-  void _onSleepDetected(SleepDetectionResult result) {
-    if (!_isActive || !_smartTimer) return;
+  /// 启动10分钟周期缩短检查
+  void _startPeriodicShortenCheck() {
+    // 每10分钟检查一次
+    _periodicShortenTimer = Timer.periodic(Duration(minutes: 10), (timer) {
+      _checkForPeriodicShorten();
+    });
+    
+    AppLogger.info('10分钟周期缩短检查已启动');
+  }
 
-    AppLogger.info('检测到睡眠状态: ${result.toString()}');
-
-    // 根据检测结果调整定时器
-    switch (result.recommendedAction) {
-      case RecommendedAction.shortenTimer:
-        _adjustTimer(0.7); // 缩短到70%
-        break;
-      case RecommendedAction.extendTimer:
-        _adjustTimer(1.3); // 延长30%
-        break;
-      case RecommendedAction.extendToMinimum:
-        _ensureMinimumTime(30); // 确保至少30分钟
-        break;
-      case RecommendedAction.maintainTimer:
-        // 保持当前定时器不变
-        AppLogger.info('智能检测建议保持当前定时器');
-        break;
-      case RecommendedAction.none:
-        // 无操作
-        break;
+  /// 检查是否需要周期性缩短定时器
+  void _checkForPeriodicShorten() {
+    if (!_isActive || !_smartTimer) {
+      _periodicShortenTimer?.cancel();
+      return;
     }
 
-    // 通知UI更新（如果需要显示检测状态）
-    notifyListeners();
+    // 检查最近10分钟内的检测记录
+    // 每30秒一次，10分钟内应该有20次记录
+    if (_detectionHistory.length >= 20) {
+      // 检查所有记录是否都是sleeping状态
+      bool allSleeping = _detectionHistory.every((result) => 
+          result.activityLevel == ActivityLevel.sleeping);
+      
+      if (allSleeping) {
+        AppLogger.info('检测到10分钟内所有状态都是sleeping，缩短定时器');
+        _shortenTimerBy50Percent();
+      } else {
+        final sleepingCount = _detectionHistory.where((result) => 
+            result.activityLevel == ActivityLevel.sleeping).length;
+        AppLogger.info('10分钟内检测记录: ${_detectionHistory.length}次，其中sleeping: $sleepingCount次，不满足全部为sleeping的条件');
+      }
+    } else {
+      AppLogger.info('10分钟内检测记录不足，当前记录数: ${_detectionHistory.length}');
+    }
   }
 
-  /// 调整定时器时长
-  void _adjustTimer(double factor) {
+  /// 缩短定时器50%
+  void _shortenTimerBy50Percent() {
     if (_endTime == null) return;
 
     final now = DateTime.now();
@@ -455,9 +484,9 @@ class SleepTimerService extends ChangeNotifier {
     
     if (currentRemaining.isNegative) return;
 
-    // 计算新的剩余时间
+    // 缩短50%
     final newRemaining = Duration(
-      milliseconds: (currentRemaining.inMilliseconds * factor).round(),
+      milliseconds: (currentRemaining.inMilliseconds * 0.5).round(),
     );
 
     // 设置新的结束时间
@@ -466,8 +495,7 @@ class SleepTimerService extends ChangeNotifier {
     // 更新记录的时长
     _lastSetMinutes = newRemaining.inMinutes;
 
-    final actionDesc = factor < 1.0 ? '缩短' : '延长';
-    AppLogger.info('智能调整定时器: $actionDesc至${newRemaining.inMinutes}分钟');
+    AppLogger.info('周期性缩短定时器: 从${currentRemaining.inMinutes}分钟缩短到${newRemaining.inMinutes}分钟');
     
     // 保存设置
     _saveSettings();
@@ -476,36 +504,82 @@ class SleepTimerService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 确保定时器至少有指定的分钟数
-  void _ensureMinimumTime(int minimumMinutes) {
-    if (_endTime == null) return;
-
-    final now = DateTime.now();
-    final currentRemaining = _endTime!.difference(now);
+  /// 处理睡眠检测结果
+  void _onSleepDetected(SleepDetectionResult result) {
+    AppLogger.info('接收到睡眠检测结果: ${result.toString()}, _isActive=$_isActive, _smartTimer=$_smartTimer');
     
-    if (currentRemaining.isNegative) return;
-
-    final currentRemainingMinutes = currentRemaining.inMinutes;
-    
-    // 如果当前剩余时间已经足够，则不做调整
-    if (currentRemainingMinutes >= minimumMinutes) {
-      AppLogger.info('当前剩余时间$currentRemainingMinutes分钟已足够，无需延长到$minimumMinutes分钟');
+    if (!_isActive || !_smartTimer) {
+      AppLogger.warning('睡眠检测结果被忽略: _isActive=$_isActive, _smartTimer=$_smartTimer');
       return;
     }
 
-    // 设置新的结束时间为当前时间 + 最小分钟数
-    _endTime = now.add(Duration(minutes: minimumMinutes));
-    
-    // 更新记录的时长
-    _lastSetMinutes = minimumMinutes;
+    AppLogger.info('检测到睡眠状态: ${result.toString()}');
 
-    AppLogger.info('智能延长定时器: 从$currentRemainingMinutes分钟延长到$minimumMinutes分钟');
+    // 记录检测历史（用于10分钟周期判断）
+    _detectionHistory.add(result);
     
-    // 保存设置
-    _saveSettings();
-    
-    // 通知UI更新
+    // 保持最近20次记录（10分钟内的记录，30秒一次）
+    if (_detectionHistory.length > 20) {
+      _detectionHistory.removeAt(0);
+    }
+
+    // 立即处理活动检测
+    _handleActivityDetection(result);
+
+    // 通知UI更新（如果需要显示检测状态）
     notifyListeners();
+  }
+
+  /// 处理活动检测（立即执行的逻辑）
+  void _handleActivityDetection(SleepDetectionResult result) {
+    AppLogger.info('开始处理活动检测 - 检测结果: ${result.activityLevel}, _isActive=$_isActive, _smartTimer=$_smartTimer');
+    
+    // 再次检查状态，确保在处理时服务仍然有效
+    if (!_isActive || !_smartTimer) {
+      AppLogger.warning('处理活动检测时状态无效: _isActive=$_isActive, _smartTimer=$_smartTimer');
+      return;
+    }
+    
+    AppLogger.info('处理活动检测: ${result.activityLevel}, sleeping判断: ${result.activityLevel == ActivityLevel.sleeping}');
+    
+    // 当检测到活动时（非sleeping状态），立即调整定时器
+    if (result.activityLevel != ActivityLevel.sleeping) {
+      AppLogger.info('检测到活动状态: ${result.activityLevel}，立即调整定时器');
+      
+      final now = DateTime.now();
+      if (_endTime == null) {
+        AppLogger.warning('_endTime为null，无法调整定时器');
+        return;
+      }
+      
+      final currentRemaining = _endTime!.difference(now);
+      if (currentRemaining.isNegative) {
+        AppLogger.warning('当前剩余时间为负数，无法调整定时器');
+        return;
+      }
+      
+      final currentRemainingMinutes = currentRemaining.inMinutes;
+      
+      AppLogger.info('当前剩余时间: $currentRemainingMinutes分钟');
+      
+      // 如果定时不足30分钟，补至30分钟；超过时不变
+      if (currentRemainingMinutes < 30) {
+        _endTime = now.add(Duration(minutes: 30));
+        _lastSetMinutes = 30;
+        
+        AppLogger.info('检测到活动，定时器从$currentRemainingMinutes分钟补充至30分钟');
+        
+        // 保存设置
+        _saveSettings();
+        
+        // 通知UI更新
+        notifyListeners();
+      } else {
+        AppLogger.info('检测到活动，但当前定时器$currentRemainingMinutes分钟已超过30分钟，保持不变');
+      }
+    } else {
+      AppLogger.info('检测到睡眠状态: ${result.activityLevel}，不调整定时器');
+    }
   }
 
   /// 加载设置
@@ -549,6 +623,7 @@ class SleepTimerService extends ChangeNotifier {
   @override
   void dispose() {
     _timer?.cancel();
+    _periodicShortenTimer?.cancel();
     _smartDetectionService?.removeListener(_onSmartDetectionStateChanged);
     _smartDetectionService?.dispose();
     super.dispose();

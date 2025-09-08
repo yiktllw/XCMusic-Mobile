@@ -29,7 +29,7 @@ class SmartDetectionService extends ChangeNotifier {
   String _initializationError = '';
 
   // 睡眠检测参数
-  static const double _sleepThreshold = 0.5; // 静止状态阈值
+  static const double _sleepThreshold = 0.3; // 静止状态阈值 - 从0.5降低到0.3，更严格
   static const int _checkIntervalSeconds = 30; // 每30秒检查一次
   static const int _actionTriggerIntervalMinutes = 5; // 每5分钟最多触发一次调整
 
@@ -344,24 +344,31 @@ class SmartDetectionService extends ChangeNotifier {
     try {
       final result = _detectSleepState();
 
-      // 检查是否需要触发调整（需要有推荐动作且满足时间间隔）
+      // 每次分析都打印结果
+      AppLogger.info('智能检测分析结果: ${result.toString()}');
+      AppLogger.info('分析详情: ${result.analysisDetails}');
+
+      // 始终调用回调函数，让SleepTimerService决定如何处理
+      if (_onSleepDetected != null) {
+        _onSleepDetected!(result);
+        AppLogger.info('已调用睡眠检测回调函数');
+      } else {
+        AppLogger.warning('睡眠检测回调函数为null');
+      }
+
+      // 记录触发调整的逻辑（仅用于日志）
       if ((result.isSleeping ||
               result.recommendedAction == RecommendedAction.extendToMinimum) &&
           result.recommendedAction != RecommendedAction.none &&
-          _shouldTriggerAction() &&
-          _onSleepDetected != null) {
+          _shouldTriggerAction()) {
         // 记录触发时间
         _lastActionTime = DateTime.now();
-        _onSleepDetected!(result);
 
         AppLogger.info(
-          '触发智能调整: ${result.recommendedAction}, 下次最早触发时间: ${DateTime.now().add(Duration(minutes: _actionTriggerIntervalMinutes))}',
+          '满足智能调整条件: ${result.recommendedAction}, 下次最早触发时间: ${DateTime.now().add(Duration(minutes: _actionTriggerIntervalMinutes))}',
         );
-      }
-
-      // 记录检测结果（调试用）
-      if (kDebugMode) {
-        AppLogger.info('智能检测结果: ${result.toString()}');
+      } else {
+        AppLogger.info('不满足智能调整条件: isSleeping=${result.isSleeping}, action=${result.recommendedAction}, shouldTrigger=${_shouldTriggerAction()}');
       }
     } catch (e) {
       AppLogger.error('分析运动数据时出错', e);
@@ -515,26 +522,36 @@ class SmartDetectionService extends ChangeNotifier {
     // 计算睡眠置信度
     double confidence = 0.0;
 
-    // 运动强度评分 (越低越可能睡眠)
-    if (motionIntensity < 0.1) {
-      confidence += 30;
+    // 运动强度评分 (越低越可能睡眠) - 提高门槛
+    if (motionIntensity < 0.05) {
+      confidence += 35; // 极低运动强度才给高分
+    } else if (motionIntensity < 0.1) {
+      confidence += 20; // 很低运动强度给中等分
     } else if (motionIntensity < 0.3) {
-      confidence += 20;
+      confidence += 10; // 低运动强度给较低分
     } else if (motionIntensity < 0.5) {
-      confidence += 10;
+      confidence += 5; // 轻微运动强度只给很少分
     }
 
-    // 运动变化评分 (越低越可能睡眠)
-    if (motionVariability < 0.1) {
-      confidence += 25;
+    // 运动变化评分 (越低越可能睡眠) - 提高门槛
+    if (motionVariability < 0.05) {
+      confidence += 30; // 极低变化幅度才给高分
+    } else if (motionVariability < 0.1) {
+      confidence += 20; // 很低变化幅度给中等分
     } else if (motionVariability < 0.3) {
-      confidence += 15;
+      confidence += 10; // 低变化幅度给较低分
     } else if (motionVariability < 0.5) {
-      confidence += 5;
+      confidence += 5; // 轻微变化幅度只给很少分
     }
 
-    // 静止时段评分
-    confidence += stillPeriods * 10;
+    // 静止时段评分 - 提高要求
+    if (stillPeriods >= 6) {
+      confidence += stillPeriods * 8; // 6个以上静止时段才给较高分
+    } else if (stillPeriods >= 4) {
+      confidence += stillPeriods * 6; // 4-5个静止时段给中等分
+    } else if (stillPeriods >= 2) {
+      confidence += stillPeriods * 4; // 2-3个静止时段给较低分
+    }
 
     // 时间权重调整
     confidence *= timeWeight;
@@ -542,9 +559,10 @@ class SmartDetectionService extends ChangeNotifier {
     // 限制在0-100范围内
     confidence = confidence.clamp(0.0, 100.0);
 
-    // 确定活动等级
+    // 确定活动等级 - 提高sleeping的门槛
     ActivityLevel activityLevel;
-    if (motionIntensity < 0.1 && stillPeriods >= 2) {
+    if (motionIntensity < 0.05 && stillPeriods >= 4 && motionVariability < 0.08) {
+      // 更严格的sleeping判断：运动强度<0.05，至少4个静止时段，变化幅度<0.08
       activityLevel = ActivityLevel.sleeping;
     } else if (motionIntensity < 0.3) {
       activityLevel = ActivityLevel.resting;
@@ -554,9 +572,10 @@ class SmartDetectionService extends ChangeNotifier {
       activityLevel = ActivityLevel.active;
     }
 
-    // 确定推荐操作
+    // 确定推荐操作 - 提高触发缩短定时器的门槛
     RecommendedAction action = RecommendedAction.none;
-    if (confidence > 70 && activityLevel == ActivityLevel.sleeping) {
+    if (confidence > 85 && activityLevel == ActivityLevel.sleeping && motionIntensity < 0.05) {
+      // 更严格的缩短定时器条件：置信度>85%，确实处于睡眠状态，运动强度极低
       action = RecommendedAction.shortenTimer;
     } else if (confidence > 50 && activityLevel == ActivityLevel.resting) {
       action = RecommendedAction.maintainTimer;
@@ -568,7 +587,7 @@ class SmartDetectionService extends ChangeNotifier {
     }
 
     return SleepDetectionResult(
-      isSleeping: confidence > 60 && activityLevel == ActivityLevel.sleeping,
+      isSleeping: confidence > 80 && activityLevel == ActivityLevel.sleeping && motionIntensity < 0.05,
       confidence: confidence,
       activityLevel: activityLevel,
       recommendedAction: action,

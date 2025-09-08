@@ -34,8 +34,6 @@ class LikelistService {
         cookie: cookie,
       );
       
-      AppLogger.api('Likelist API 返回结果: $result');
-
       if (result['status'] == 200 && result['body'] != null) {
         final body = result['body'] as Map<String, dynamic>;
         
