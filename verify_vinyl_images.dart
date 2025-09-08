@@ -3,6 +3,8 @@
 /// 验证生成的黑胶图片是否为透明背景的圆形
 /// 检查图片的透明度和圆形边界
 
+// ignore_for_file: dangling_library_doc_comments, avoid_print
+
 import 'dart:io';
 import 'package:image/image.dart' as img;
 
@@ -35,7 +37,7 @@ Future<void> verifyImage(String filePath) async {
     return;
   }
   
-  print('📊 验证 ${filePath}:');
+  print('📊 验证 $filePath:');
   print('   尺寸: ${image.width}x${image.height}');
   
   // 检查四个角是否透明

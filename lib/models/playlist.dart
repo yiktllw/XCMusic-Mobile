@@ -80,6 +80,7 @@ class Creator {
 class Track {
   final int id;
   final String name;
+  final List<String> tns; // 歌曲译名
   final List<Artist> artists;
   final Album album;
   final int duration;
@@ -90,6 +91,7 @@ class Track {
   Track({
     required this.id,
     required this.name,
+    this.tns = const [],
     required this.artists,
     required this.album,
     required this.duration,
@@ -102,6 +104,7 @@ class Track {
     return Track(
       id: (json['id'] ?? 0) as int,
       name: (json['name'] ?? '未知歌曲') as String,
+      tns: (json['tns'] as List?)?.map((e) => e.toString()).toList() ?? [],
       artists: (json['ar'] as List?)
           ?.map((artist) => Artist.fromJson(artist as Map<String, dynamic>))
           .toList() ?? [],
@@ -153,11 +156,13 @@ class Artist {
 class Album {
   final int id;
   final String name;
+  final List<String> tns; // 专辑译名
   final String picUrl;
 
   Album({
     required this.id,
     required this.name,
+    this.tns = const [],
     required this.picUrl,
   });
 
@@ -165,6 +170,7 @@ class Album {
     return Album(
       id: (json['id'] ?? 0) as int,
       name: (json['name'] ?? '未知专辑') as String,
+      tns: (json['tns'] as List?)?.map((e) => e.toString()).toList() ?? [],
       picUrl: (json['picUrl'] ?? json['pic'] ?? '') as String,
     );
   }

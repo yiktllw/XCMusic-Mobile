@@ -61,9 +61,9 @@ class SleepTimerService extends ChangeNotifier {
     if (!_isActive) return '定时关闭未启用';
     
     if (_smartTimer) {
-      return '智能关闭已启用，预计剩余时间：${remainingTimeString}';
+      return '智能关闭已启用，预计剩余时间：$remainingTimeString';
     } else {
-      return '定时关闭已启用，剩余时间：${remainingTimeString}';
+      return '定时关闭已启用，剩余时间：$remainingTimeString';
     }
   }
 
@@ -467,7 +467,7 @@ class SleepTimerService extends ChangeNotifier {
     _lastSetMinutes = newRemaining.inMinutes;
 
     final actionDesc = factor < 1.0 ? '缩短' : '延长';
-    AppLogger.info('智能调整定时器: ${actionDesc}至${newRemaining.inMinutes}分钟');
+    AppLogger.info('智能调整定时器: $actionDesc至${newRemaining.inMinutes}分钟');
     
     // 保存设置
     _saveSettings();
@@ -489,7 +489,7 @@ class SleepTimerService extends ChangeNotifier {
     
     // 如果当前剩余时间已经足够，则不做调整
     if (currentRemainingMinutes >= minimumMinutes) {
-      AppLogger.info('当前剩余时间${currentRemainingMinutes}分钟已足够，无需延长到${minimumMinutes}分钟');
+      AppLogger.info('当前剩余时间$currentRemainingMinutes分钟已足够，无需延长到$minimumMinutes分钟');
       return;
     }
 
@@ -499,7 +499,7 @@ class SleepTimerService extends ChangeNotifier {
     // 更新记录的时长
     _lastSetMinutes = minimumMinutes;
 
-    AppLogger.info('智能延长定时器: 从${currentRemainingMinutes}分钟延长到${minimumMinutes}分钟');
+    AppLogger.info('智能延长定时器: 从$currentRemainingMinutes分钟延长到$minimumMinutes分钟');
     
     // 保存设置
     _saveSettings();

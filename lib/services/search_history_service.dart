@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:xcmusic_mobile/utils/app_logger.dart';
+
 import '../utils/global_config.dart';
 
 /// 搜索历史管理类
@@ -15,7 +17,7 @@ class SearchHistoryService {
         return historyList.cast<String>();
       }
     } catch (e) {
-      print('获取搜索历史失败: $e');
+      AppLogger.error('获取搜索历史失败: $e');
     }
     return [];
   }
@@ -41,7 +43,7 @@ class SearchHistoryService {
       // 保存到本地存储
       await GlobalConfig().set(_keySearchHistory, jsonEncode(history));
     } catch (e) {
-      print('保存搜索历史失败: $e');
+      AppLogger.error('保存搜索历史失败: $e');
     }
   }
 
@@ -52,7 +54,7 @@ class SearchHistoryService {
       history.remove(query);
       await GlobalConfig().set(_keySearchHistory, jsonEncode(history));
     } catch (e) {
-      print('删除搜索历史失败: $e');
+      AppLogger.error('删除搜索历史失败: $e');
     }
   }
 
@@ -61,7 +63,7 @@ class SearchHistoryService {
     try {
       await GlobalConfig().remove(_keySearchHistory);
     } catch (e) {
-      print('清空搜索历史失败: $e');
+      AppLogger.error('清空搜索历史失败: $e');
     }
   }
 }

@@ -40,12 +40,12 @@ class _SearchResultPageState extends State<SearchResultPage>
   };
 
   // 搜索结果数据
-  Map<int, List<dynamic>> _searchResults = {};
-  Map<int, int> _searchCounts = {};
-  Map<int, bool> _isLoading = {};
+  final Map<int, List<dynamic>> _searchResults = {};
+  final Map<int, int> _searchCounts = {};
+  final Map<int, bool> _isLoading = {};
 
   // 分页相关
-  Map<int, int> _currentPages = {};
+  final Map<int, int> _currentPages = {};
   final int _pageSize = 30;
 
   // 管理每个歌曲的歌词展开状态
@@ -610,14 +610,12 @@ class _SearchResultPageState extends State<SearchResultPage>
               ),
               const SizedBox(height: 6),
               // 歌词内容
-              ...displayLyrics
-                  .map(
-                    (lyricData) => Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: _buildLyricLine(lyricData),
-                    ),
-                  )
-                  .toList(),
+              ...displayLyrics.map(
+                (lyricData) => Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: _buildLyricLine(lyricData),
+                ),
+              ),
             ],
           ),
         );
@@ -874,7 +872,9 @@ class _SearchResultPageState extends State<SearchResultPage>
         return false;
       },
       child: ListView.builder(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100), // 适应safe area + 浮动播放控件
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom + 100,
+        ), // 适应safe area + 浮动播放控件
         itemCount: artists.length + (_shouldShowLoadingIndicator(100) ? 1 : 0),
         itemBuilder: (context, index) {
           // 如果是最后一项且正在加载，显示加载指示器
@@ -924,7 +924,9 @@ class _SearchResultPageState extends State<SearchResultPage>
         return false;
       },
       child: ListView.builder(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100), // 适应safe area + 浮动播放控件
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom + 100,
+        ), // 适应safe area + 浮动播放控件
         itemCount: albums.length + (_shouldShowLoadingIndicator(10) ? 1 : 0),
         itemBuilder: (context, index) {
           // 如果是最后一项且正在加载，显示加载指示器
@@ -989,7 +991,9 @@ class _SearchResultPageState extends State<SearchResultPage>
         return false;
       },
       child: ListView.builder(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100), // 适应safe area + 浮动播放控件
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom + 100,
+        ), // 适应safe area + 浮动播放控件
         itemCount:
             playlists.length + (_shouldShowLoadingIndicator(1000) ? 1 : 0),
         itemBuilder: (context, index) {
@@ -1055,7 +1059,9 @@ class _SearchResultPageState extends State<SearchResultPage>
         return false;
       },
       child: ListView.builder(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom + 100), // 适应safe area + 浮动播放控件
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).padding.bottom + 100,
+        ), // 适应safe area + 浮动播放控件
         itemCount: users.length + (_shouldShowLoadingIndicator(1002) ? 1 : 0),
         itemBuilder: (context, index) {
           // 如果是最后一项且正在加载，显示加载指示器

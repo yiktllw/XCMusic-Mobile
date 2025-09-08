@@ -171,13 +171,14 @@ class _PlayerPageState extends State<PlayerPage>
         final availableHeight = constraints.maxHeight;
         final albumCoverSpace = availableHeight - bottomControlsHeight;
         
-        // 当专辑封面空间不足100时隐藏封面
-        final shouldShowAlbumCover = albumCoverSpace >= 100;
+        // 根据可用空间决定显示方式
+        final shouldShowFullAlbumCover = albumCoverSpace >= 150;
+        final shouldShowMiniAlbumCover = albumCoverSpace >= 60;
         
         return Column(
           children: [
-            // 专辑封面区域 - 当空间足够时显示
-            if (shouldShowAlbumCover)
+            // 专辑封面区域 - 根据空间大小显示不同版本
+            if (shouldShowFullAlbumCover)
               Expanded(
                 child: Center(
                   child: Padding(
@@ -186,9 +187,41 @@ class _PlayerPageState extends State<PlayerPage>
                   ),
                 ),
               )
+            else if (shouldShowMiniAlbumCover)
+              // 空间较小时显示迷你封面
+              SizedBox(
+                height: albumCoverSpace.clamp(60.0, 120.0),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: AspectRatio(
+                      aspectRatio: 1.0,
+                      child: ClipOval(
+                        child: Image.network(
+                          '${track.album.picUrl}?param=200y200',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.music_note,
+                                size: 24,
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              )
             else
-              // 空间不足时显示一个小的占位区域
-              Container(
+              // 空间极小时显示图标
+              SizedBox(
                 height: 40,
                 child: Center(
                   child: Icon(
@@ -236,8 +269,8 @@ class _PlayerPageState extends State<PlayerPage>
       builder: (context, constraints) {
         // 计算可用的最大尺寸，保持正方形
         final maxSize = constraints.biggest.shortestSide;
-        // 留出一些边距，避免贴边
-        final albumSize = (maxSize * 0.9).clamp(200.0, 320.0);
+        // 留出一些边距，避免贴边，但不强制最小尺寸
+        final albumSize = maxSize * 0.9;
         final coverSize = albumSize * 0.625; // 专辑封面占黑胶的62.5%
         
         return AnimatedBuilder(
@@ -563,7 +596,7 @@ class _PlayerPageState extends State<PlayerPage>
 
   /// 构建额外控制栏（喜欢、评论、收藏、下载、详情按钮）
   Widget _buildAdditionalControls(BuildContext context, Track track) {
-    return Container(
+    return SizedBox(
       height: 56,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,

@@ -720,7 +720,7 @@ class _SearchPageState extends State<SearchPage> {
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         foregroundColor: Theme.of(context).colorScheme.onSurface,
-        title: Container(
+        title: SizedBox(
           height: SearchBarConfig.height,
           child: TextField(
             controller: _searchController,

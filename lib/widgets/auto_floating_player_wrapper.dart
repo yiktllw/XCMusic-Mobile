@@ -132,18 +132,15 @@ class AutoWrappedPageRoute<T> extends MaterialPageRoute<T> {
   
   AutoWrappedPageRoute({
     required Widget Function(BuildContext) builder,
-    RouteSettings? settings,
+    super.settings,
     this.routeName,
-    bool maintainState = true,
-    bool fullscreenDialog = false,
+    super.maintainState,
+    super.fullscreenDialog,
   }) : super(
           builder: (context) => AutoFloatingPlayerWrapper(
             routeName: routeName ?? settings?.name,
             child: builder(context),
           ),
-          settings: settings,
-          maintainState: maintainState,
-          fullscreenDialog: fullscreenDialog,
         );
 }
 

@@ -484,7 +484,7 @@ class _HomePageContentState extends State<HomePageContent> {
               child: Stack(
                 children: [
                   // 背景图片
-                  Container(
+                  SizedBox(
                     width: double.infinity,
                     height: double.infinity,
                     child: Image.network(
