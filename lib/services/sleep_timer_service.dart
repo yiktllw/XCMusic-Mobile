@@ -22,6 +22,9 @@ class SleepTimerService extends ChangeNotifier {
   final List<SleepDetectionResult> _detectionHistory = [];
   Timer? _periodicShortenTimer;
   
+  // 累计补充时间（分钟）
+  int _totalSupplementedMinutes = 0;
+  
   // 夜间询问相关设置
   bool _nightModeAsk = false;
   int _nightStartHour = 22;  // 晚上10点
@@ -37,6 +40,7 @@ class SleepTimerService extends ChangeNotifier {
   bool get finishCurrentSong => _finishCurrentSong;
   bool get smartTimer => _smartTimer && _isActive;
   int get lastSetMinutes => _lastSetMinutes;
+  int get totalSupplementedMinutes => _totalSupplementedMinutes;
   
   // 夜间询问相关getters
   bool get nightModeAsk => _nightModeAsk;
@@ -169,6 +173,9 @@ class SleepTimerService extends ChangeNotifier {
     _endTime = null;
     _isActive = false;
     
+    // 重置累计补充时间
+    _totalSupplementedMinutes = 0;
+    
     // 停止智能监听
     if (_smartTimer) {
       _smartDetectionService?.stopMonitoring();
@@ -227,6 +234,9 @@ class SleepTimerService extends ChangeNotifier {
       _timer?.cancel();
       _timer = null;
       _endTime = null;
+      
+      // 重置累计补充时间
+      _totalSupplementedMinutes = 0;
       
       // 停止智能监听
       _smartDetectionService?.stopMonitoring();
@@ -345,6 +355,9 @@ class SleepTimerService extends ChangeNotifier {
       _periodicShortenTimer?.cancel();
       _periodicShortenTimer = null;
       
+      // 重置累计补充时间
+      _totalSupplementedMinutes = 0;
+      
       // 清空检测历史
       _detectionHistory.clear();
       
@@ -404,6 +417,9 @@ class SleepTimerService extends ChangeNotifier {
     
     _lastSetMinutes = baseMinutes;
     _endTime = DateTime.now().add(Duration(minutes: baseMinutes));
+    
+    // 重置累计补充时间
+    _totalSupplementedMinutes = 0;
     
     AppLogger.info('智能关闭设置统一基础定时: $baseMinutes分钟');
     
@@ -560,20 +576,28 @@ class SleepTimerService extends ChangeNotifier {
       
       final currentRemainingMinutes = currentRemaining.inMinutes;
       
-      AppLogger.info('当前剩余时间: $currentRemainingMinutes分钟');
+      AppLogger.info('当前剩余时间: $currentRemainingMinutes分钟，累计补充时间: $_totalSupplementedMinutes分钟');
       
-      // 如果定时不足30分钟，补至30分钟；超过时不变
+      // 如果定时不足30分钟，且累计补充时间未超过90分钟，则补充至30分钟
       if (currentRemainingMinutes < 30) {
-        _endTime = now.add(Duration(minutes: 30));
-        _lastSetMinutes = 30;
+        final supplementNeeded = 30 - currentRemainingMinutes;
         
-        AppLogger.info('检测到活动，定时器从$currentRemainingMinutes分钟补充至30分钟');
-        
-        // 保存设置
-        _saveSettings();
-        
-        // 通知UI更新
-        notifyListeners();
+        // 检查累计补充时间是否超过90分钟
+        if (_totalSupplementedMinutes + supplementNeeded <= 90) {
+          _endTime = now.add(Duration(minutes: 30));
+          _lastSetMinutes = 30;
+          _totalSupplementedMinutes += supplementNeeded;
+          
+          AppLogger.info('检测到活动，定时器从$currentRemainingMinutes分钟补充至30分钟，本次补充$supplementNeeded分钟，累计补充$_totalSupplementedMinutes分钟');
+          
+          // 保存设置
+          _saveSettings();
+          
+          // 通知UI更新
+          notifyListeners();
+        } else {
+          AppLogger.info('检测到活动，但累计补充时间$_totalSupplementedMinutes分钟已接近或超过90分钟限制，不再补充时间');
+        }
       } else {
         AppLogger.info('检测到活动，但当前定时器$currentRemainingMinutes分钟已超过30分钟，保持不变');
       }
